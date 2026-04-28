@@ -6,7 +6,7 @@ import { initQuiz, startQuiz, handleAnswer } from "./handlers/quiz.handler.js";
 dotenv.config();
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
-
+console.log("BOT TOKEN:", process.env.BOT_TOKEN);
 (async () => {
   await bot.telegram.deleteWebhook();
 
