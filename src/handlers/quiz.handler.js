@@ -1,19 +1,15 @@
 let users = {};
 
-const questions = Array.from({ length: 100 }, (_, i) => ({
-  question: `${i + 1}-savol: Ot nima?`,
-  answers: ["So‘z turi", "Gap", "Tovush", "Raqam"],
-  correct: 0,
-}));
+const questions = globalThis.ALL_QUESTIONS || [];
 
-/* ========================= */
 export async function initQuiz() {
-  console.log("Quiz loaded");
+  console.log("Quiz loaded:", questions.length);
 }
 
 /* ========================= */
 export async function resetUser(userId) {
   users[userId] = {
+    used: [],
     score: 0,
     stopped: false,
   };
@@ -32,20 +28,33 @@ export async function getRandomQuestion(userId) {
 
   if (!u || u.stopped) return null;
 
-  const randomIndex = Math.floor(Math.random() * questions.length);
+  const available = questions.filter((_, i) => !u.used.includes(i));
 
-  return questions[randomIndex];
+  if (available.length === 0) {
+    u.used = []; // restart cycle (infinite)
+    return getRandomQuestion(userId);
+  }
+
+  const q = available[Math.floor(Math.random() * available.length)];
+  const index = questions.indexOf(q);
+
+  u.used.push(index);
+
+  return q;
 }
 
 /* ========================= */
-export async function handleAnswer(userId, answerIndex) {
+export async function handleAnswer(userId, i) {
   const u = users[userId];
 
   if (!u) return "❌ error";
 
-  const correct = 0;
+  const last = u.used[u.used.length - 1];
+  const q = questions[last];
 
-  if (answerIndex === correct) {
+  if (!q) return "❌ error";
+
+  if (i === q.correct) {
     u.score += 10;
     return `✅ To‘g‘ri | Ball: ${u.score}`;
   }

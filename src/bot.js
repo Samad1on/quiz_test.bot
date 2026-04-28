@@ -16,34 +16,45 @@ const bot = new Telegraf(process.env.BOT_TOKEN);
 const timers = {};
 
 /* =========================
+   MENU
+========================= */
+function mainMenu() {
+  return {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "🚀 START TEST", callback_data: "begin_quiz" }],
+        [{ text: "⛔ STOP TEST", callback_data: "stop_quiz" }],
+      ],
+    },
+  };
+}
+
+/* =========================
    START
 ========================= */
 bot.start(async (ctx) => {
   await resetUser(ctx.from.id);
 
-  return ctx.reply("🚀 Infinite Quiz", {
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "▶ START", callback_data: "begin_quiz" }],
-        [{ text: "⛔ STOP", callback_data: "stop_quiz" }],
-      ],
-    },
-  });
+  return ctx.reply("🎯 Quiz Bot", mainMenu());
 });
 
 /* =========================
-   STOP
+   STOP (RESET + MENU)
 ========================= */
 bot.action("stop_quiz", async (ctx) => {
   await ctx.answerCbQuery();
 
-  stopQuiz(ctx.from.id);
+  const userId = ctx.from.id;
 
-  if (timers[ctx.from.id]) {
-    clearTimeout(timers[ctx.from.id]);
+  stopQuiz(userId);
+
+  if (timers[userId]) {
+    clearTimeout(timers[userId]);
   }
 
-  return ctx.reply("⛔ Test to‘xtadi");
+  await resetUser(userId);
+
+  return ctx.reply("⛔ Test to‘xtatildi", mainMenu());
 });
 
 /* =========================
@@ -52,24 +63,29 @@ bot.action("stop_quiz", async (ctx) => {
 bot.action("begin_quiz", async (ctx) => {
   await ctx.answerCbQuery();
 
-  await resetUser(ctx.from.id);
+  const userId = ctx.from.id;
+
+  await resetUser(userId);
 
   sendQuestion(ctx);
 });
 
 /* =========================
-   SEND QUESTION (INFINITE)
+   SEND QUESTION (FIX RANDOM + NO REPEAT)
 ========================= */
 async function sendQuestion(ctx) {
   const userId = ctx.from.id;
 
   const q = await getRandomQuestion(userId);
 
-  if (!q) return;
+  if (!q) return ctx.reply("❌ Savol topilmadi");
 
   const buttons = q.answers.map((a, i) => [
     { text: a, callback_data: `answer_${i}` },
   ]);
+
+  // ⚡ STOP BUTTON HAR DOIM
+  buttons.push([{ text: "⛔ STOP TEST", callback_data: "stop_quiz" }]);
 
   await ctx.reply(
     `❓ ${q.question}
@@ -82,9 +98,7 @@ async function sendQuestion(ctx) {
     },
   );
 
-  if (timers[userId]) {
-    clearTimeout(timers[userId]);
-  }
+  if (timers[userId]) clearTimeout(timers[userId]);
 
   timers[userId] = setTimeout(() => {
     ctx.telegram.sendMessage(ctx.chat.id, "⏰ Vaqt tugadi!");
@@ -101,9 +115,7 @@ bot.action(/answer_(\d+)/, async (ctx) => {
 
   await ctx.answerCbQuery();
 
-  if (timers[userId]) {
-    clearTimeout(timers[userId]);
-  }
+  if (timers[userId]) clearTimeout(timers[userId]);
 
   const res = await handleAnswer(userId, index);
 
@@ -122,5 +134,5 @@ bot.action(/answer_(\d+)/, async (ctx) => {
 
   bot.launch();
 
-  console.log("🤖 Infinite Quiz Bot started");
+  console.log("🤖 FINAL Quiz Bot started");
 })();
