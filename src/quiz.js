@@ -1,135 +1,75 @@
-// ================= DATA =================
-const users = {};
-const timers = {};
+import { questions } from "./questions.js";
 
-// ================= QUESTIONS =================
-export const questions = Array.from({ length: 491 }, (_, i) => ({
-  id: i,
-  question: `${i + 1}-savol: Ot nima?`,
-  answers: ["So‘z turi", "Gap", "Tovush", "Raqam"],
-  correct: 0,
-}));
+const users = new Map();
 
-// ================= INIT USER =================
-export function initUser(id) {
-  if (!users[id]) {
-    users[id] = {
-      used: [],
-      score: 0,
-      active: false,
-      current: null, // 🔥 MUHIM
-    };
-  }
+// ================= INIT =================
+export function initUser(ctx) {
+  users.set(ctx.from.id, {
+    index: 0,
+    score: 0,
+    used: [],
+  });
 }
 
 // ================= RANDOM QUESTION =================
-export function getRandomQuestion(id) {
-  const user = users[id];
+function getRandomQuestion(user) {
+  const available = questions.filter((q) => !user.used.includes(q.id));
 
-  let available = questions.filter((q) => !user.used.includes(q.id));
+  if (available.length === 0) return null;
 
-  if (available.length === 0) {
-    user.used = [];
-    available = questions;
-  }
-
-  const q = available[Math.floor(Math.random() * available.length)];
-
-  user.used.push(q.id);
-  user.current = q.id; // 🔥 MUHIM
-
-  return q;
-}
-
-// ================= CLEAR TIMER =================
-function clearUserTimer(id) {
-  if (timers[id]) {
-    clearTimeout(timers[id]);
-    delete timers[id];
-  }
-}
-
-// ================= SEND QUESTION =================
-export async function sendQuestion(ctx, bot) {
-  const id = ctx.from.id;
-  const user = users[id];
-
-  if (!user || !user.active) return;
-
-  const q = getRandomQuestion(id);
-
-  const buttons = q.answers.map((a, i) => [
-    { text: a, callback_data: `ans_${i}` },
-  ]);
-
-  buttons.push([{ text: "⛔ STOP TEST", callback_data: "stop" }]);
-
-  await ctx.reply(`❓ ${q.question}\n\n⏳ 30 sekund`, {
-    reply_markup: { inline_keyboard: buttons },
-  });
-
-  clearUserTimer(id);
-
-  timers[id] = setTimeout(() => {
-    ctx.telegram.sendMessage(ctx.chat.id, "⏰ Vaqt tugadi!");
-    sendQuestion(ctx, bot);
-  }, 30000);
+  const random = available[Math.floor(Math.random() * available.length)];
+  return random;
 }
 
 // ================= START QUIZ =================
-export function startQuiz(ctx, bot) {
-  const id = ctx.from.id;
+export function startQuiz(ctx) {
+  const user = users.get(ctx.from.id);
 
-  initUser(id);
+  const q = getRandomQuestion(user);
 
-  users[id].active = true;
-  users[id].score = 0;
-  users[id].used = [];
-  users[id].current = null;
-
-  sendQuestion(ctx, bot);
-}
-
-// ================= STOP QUIZ =================
-export function stopQuiz(ctx) {
-  const id = ctx.from.id;
-
-  clearUserTimer(id);
-
-  if (users[id]) {
-    users[id].active = false;
-    users[id].used = [];
-    users[id].score = 0;
-    users[id].current = null;
+  if (!q) {
+    return ctx.reply(`🎉 Test tugadi! Ball: ${user.score}`);
   }
 
-  ctx.reply("⛔ Test to‘xtadi");
+  user.current = q;
+
+  ctx.reply(`❓ ${q.q}\n\n⏳ 30 sekund`, {
+    reply_markup: {
+      inline_keyboard: q.a.map((text, i) => [
+        { text, callback_data: `ans_${i}` },
+      ]),
+    },
+  });
 }
 
-// ================= ANSWER HANDLER =================
-export function answerHandler(ctx, bot) {
-  const id = ctx.from.id;
-  const user = users[id];
-
-  if (!user || !user.active) return;
-
-  clearUserTimer(id);
-
-  const ans = Number(ctx.match[1]);
-
-  const q = questions.find((x) => x.id === user.current);
+// ================= ANSWER =================
+export function answerHandler(ctx, bot, answerIndex) {
+  const user = users.get(ctx.from.id);
+  const q = user.current;
 
   if (!q) return;
 
-  if (ans === q.correct) {
+  const correct = q.correct;
+
+  if (Number(answerIndex) === correct) {
     user.score += 10;
     ctx.reply(`✅ To‘g‘ri | Ball: ${user.score}`);
   } else {
     ctx.reply(`❌ Noto‘g‘ri | Ball: ${user.score}`);
   }
 
-  setTimeout(() => sendQuestion(ctx, bot), 700);
+  user.used.push(q.id);
+
+  setTimeout(() => {
+    startQuiz(ctx, bot);
+  }, 1000);
 }
 
-// ================= EXPORTS =================
-export { users, timers };
+// ================= STOP =================
+export function stopQuiz(ctx) {
+  const user = users.get(ctx.from.id);
+
+  ctx.reply(`🛑 Stop | Final Ball: ${user?.score || 0}`);
+
+  users.delete(ctx.from.id);
+}
