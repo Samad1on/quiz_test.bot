@@ -9,8 +9,8 @@ const questions = Array.from({ length: 491 }, (_, i) => ({
   correct: 0,
 }));
 
-/* ================= USER INIT ================= */
-function init(userId) {
+/* ================= INIT ================= */
+function initUser(userId) {
   if (!users[userId]) {
     users[userId] = {
       used: [],
@@ -24,14 +24,15 @@ function init(userId) {
 function getRandom(userId) {
   const user = users[userId];
 
-  const available = questions.filter((q) => !user.used.includes(q.id));
+  let available = questions.filter((q) => !user.used.includes(q.id));
 
   if (available.length === 0) {
     user.used = [];
-    return getRandom(userId);
+    available = questions;
   }
 
   const q = available[Math.floor(Math.random() * available.length)];
+
   user.used.push(q.id);
 
   return q;
@@ -50,7 +51,6 @@ async function sendQuestion(ctx, bot) {
     { text: a, callback_data: `ans_${i}` },
   ]);
 
-  // STOP HAR DOIM PASDA
   buttons.push([{ text: "⛔ STOP TEST", callback_data: "stop" }]);
 
   await ctx.reply(
@@ -74,7 +74,7 @@ async function sendQuestion(ctx, bot) {
 export function startQuiz(ctx, bot) {
   const id = ctx.from.id;
 
-  init(id);
+  initUser(id);
   users[id].active = true;
 
   sendQuestion(ctx, bot);
