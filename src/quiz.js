@@ -1,15 +1,50 @@
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+/* ================= FILE LOAD ================= */
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const text = fs.readFileSync(
+  path.join(__dirname, "../data/questions.txt"),
+  "utf-8",
+);
+
+/* ================= PARSE ================= */
+function parse(text) {
+  const blocks = text
+    .split("++++")
+    .map((b) => b.trim())
+    .filter(Boolean);
+
+  return blocks.map((block, i) => {
+    const lines = block
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+
+    const question = lines.find((l) => !l.startsWith("#"));
+    const answers = lines
+      .filter((l) => l.startsWith("#"))
+      .map((l) => l.replace("#", "").trim());
+
+    return {
+      id: i,
+      question,
+      answers,
+      correct: 0, // 1-variant correct deb olamiz
+    };
+  });
+}
+
+export const questions = parse(text);
+
+/* ================= STATE ================= */
 const users = {};
 const timers = {};
 
-/* ================= QUESTIONS ================= */
-export const questions = Array.from({ length: 491 }, (_, i) => ({
-  id: i,
-  question: `${i + 1}-savol: Ot nima?`,
-  answers: ["So‘z turi", "Gap", "Tovush", "Raqam"],
-  correct: 0,
-}));
-
-/* ================= INIT USER ================= */
+/* ================= INIT ================= */
 export function initUser(id) {
   if (!users[id]) {
     users[id] = {
@@ -20,8 +55,8 @@ export function initUser(id) {
   }
 }
 
-/* ================= GET RANDOM QUESTION ================= */
-export function getRandomQuestion(id) {
+/* ================= RANDOM ENGINE ================= */
+function getQuestion(id) {
   const user = users[id];
 
   let available = questions.filter((q) => !user.used.has(q.id));
@@ -37,28 +72,26 @@ export function getRandomQuestion(id) {
   return q;
 }
 
-/* ================= SEND QUESTION ================= */
+/* ================= SEND ================= */
 export async function sendQuestion(ctx, bot) {
   const id = ctx.from.id;
   const user = users[id];
 
   if (!user || !user.active) return;
 
-  const q = getRandomQuestion(id);
+  const q = getQuestion(id);
 
   const buttons = q.answers.map((a, i) => [
     { text: a, callback_data: `ans_${i}` },
   ]);
 
-  buttons.push([{ text: "⛔ STOP TEST", callback_data: "stop" }]);
+  buttons.push([{ text: "⛔ STOP", callback_data: "stop" }]);
 
   await ctx.reply(
     `❓ ${q.question}
 
 ⏳ 30 sekund`,
-    {
-      reply_markup: { inline_keyboard: buttons },
-    },
+    { reply_markup: { inline_keyboard: buttons } },
   );
 
   if (timers[id]) clearTimeout(timers[id]);
@@ -66,41 +99,9 @@ export async function sendQuestion(ctx, bot) {
   timers[id] = setTimeout(() => {
     if (!users[id]?.active) return;
 
-    bot.telegram.sendMessage(ctx.chat.id, "⏰ Vaqt tugadi!");
+    ctx.telegram.sendMessage(ctx.chat.id, "⏰ Vaqt tugadi!");
     sendQuestion(ctx, bot);
   }, 30000);
-}
-
-/* ================= START ================= */
-const users = {};
-const timers = {};
-
-export function initUser(id) {
-  if (!users[id]) {
-    users[id] = {
-      used: new Set(), // 🔥 MUHIM FIX
-      active: false,
-      score: 0,
-    };
-  }
-}
-
-/* ================= RANDOM ================= */
-export function getQuestion(id, questions) {
-  const user = users[id];
-
-  let available = questions.filter((q) => !user.used.has(q.id));
-
-  if (available.length === 0) {
-    user.used.clear(); // 🔥 RESET TOZA
-    available = questions;
-  }
-
-  const q = available[Math.floor(Math.random() * available.length)];
-
-  user.used.add(q.id);
-
-  return q;
 }
 
 /* ================= STOP ================= */
@@ -125,10 +126,8 @@ export function answerHandler(ctx, bot) {
 
   if (!user || !user.active) return;
 
-  const lastId = [...user.used].pop();
-  const q = questions.find((x) => x.id === lastId);
-
-  if (!q) return;
+  const last = [...user.used].pop();
+  const q = questions.find((x) => x.id === last);
 
   const ans = Number(ctx.match[1]);
 
@@ -144,5 +143,5 @@ export function answerHandler(ctx, bot) {
   setTimeout(() => sendQuestion(ctx, bot), 800);
 }
 
-/* ================= EXPORT STATE ================= */
+/* ================= EXPORT ================= */
 export { users, timers };
