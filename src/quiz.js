@@ -1,4 +1,4 @@
-import { parseQuestions } from "./parser.js";
+import  from "./data/";
 
 // 🔥 TXT dan o‘qiladigan questions
 const questions = parseQuestions("./data/questions.txt");

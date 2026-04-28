@@ -1,6 +1,13 @@
 import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
-export function parseQuestions(filePath) {
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export function parseQuestions() {
+  const filePath = path.join(__dirname, "data/questions.txt");
+
   const raw = fs.readFileSync(filePath, "utf-8");
 
   const blocks = raw
@@ -16,14 +23,13 @@ export function parseQuestions(filePath) {
       .map((p) => p.trim())
       .filter(Boolean);
 
-    if (parts.length < 5) continue;
+    if (parts.length < 2) continue;
 
     const question = parts[0];
 
     const answers = [];
-    let correct = -1;
+    let correct = 0;
 
-    // 🔥 CLEAN LOOP (BEST PRACTICE)
     for (let i = 1; i < parts.length; i++) {
       const item = parts[i];
 
@@ -34,9 +40,6 @@ export function parseQuestions(filePath) {
         answers.push(item);
       }
     }
-
-    // 🔥 safety check
-    if (correct === -1) correct = 0;
 
     questions.push({
       id: questions.length + 1,

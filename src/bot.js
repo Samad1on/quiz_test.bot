@@ -1,46 +1,46 @@
 import { Telegraf } from "telegraf";
 import dotenv from "dotenv";
 
-import { initUser, startQuiz, stopQuiz, answerHandler } from "./quiz.js";
+import {
+  initUser,
+  startQuiz,
+  stopQuiz,
+  answerHandler,
+} from "./quiz.service.js";
 
 dotenv.config();
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
 // ================= START =================
-bot.start(async (ctx) => {
-  initUser(ctx);
+bot.start((ctx) => {
+  initUser(ctx.from.id);
 
-  await ctx.reply("🎯 Quiz Bot Ready", {
+  ctx.reply("🎯 Smart Quiz Bot", {
     reply_markup: {
-      inline_keyboard: [
-        [{ text: "🚀 Testni boshlash", callback_data: "start_test" }],
-      ],
+      inline_keyboard: [[{ text: "🚀 START", callback_data: "start" }]],
     },
   });
 });
 
-// ================= START TEST =================
-bot.action("start_test", async (ctx) => {
+// ================= START QUIZ =================
+bot.action("start", async (ctx) => {
   await ctx.answerCbQuery();
-  startQuiz(ctx, bot);
-});
-
-// ================= STOP TEST =================
-bot.action("stop", async (ctx) => {
-  await ctx.answerCbQuery();
-  stopQuiz(ctx);
+  startQuiz(ctx);
 });
 
 // ================= ANSWER =================
 bot.action(/ans_(\d+)/, async (ctx) => {
   await ctx.answerCbQuery();
-
-  const answerIndex = ctx.match[1];
-  answerHandler(ctx, bot, Number(answerIndex));
+  answerHandler(ctx);
 });
 
-// ================= LAUNCH =================
-bot.launch().then(() => {
-  console.log("🤖 Bot started");
+// ================= STOP =================
+bot.action("stop", async (ctx) => {
+  await ctx.answerCbQuery();
+  stopQuiz(ctx);
 });
+
+bot.launch();
+
+console.log("🤖 Bot running...");

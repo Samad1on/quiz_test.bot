@@ -5236,9 +5236,3 @@ balki
 #ham 
 ==== 
 deb 
-Tuzuvchi     
-Kafedra mudiri    
-Fakultet dekani     
-Sh.U.Erbutayeva, Q.Y.Xalilov 
-I.H.Yoqubov 
-I.B.Utayeva 
