@@ -15,8 +15,6 @@ const bot = new Telegraf(process.env.BOT_TOKEN);
 
 // ================= START =================
 bot.start((ctx) => {
-  initUser(ctx.from.id);
-
   ctx.reply("🎯 Quiz Bot Ready", {
     reply_markup: {
       inline_keyboard: [
@@ -27,14 +25,15 @@ bot.start((ctx) => {
   });
 });
 
-// ================= DEBUG (MUHIM) =================
+// DEBUG
 bot.on("callback_query", (ctx) => {
   console.log("CLICK:", ctx.callbackQuery.data);
 });
 
-// ================= START QUIZ =================
+// START
 bot.action("start", async (ctx) => {
   await ctx.answerCbQuery();
+  console.log("START WORKED");
   startQuiz(ctx);
 });
 
