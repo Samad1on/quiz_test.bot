@@ -6,3 +6,6 @@ export const questions = [
     correct: 0,
   },
 ];
+
+export const users = {};
+export const timers = {};
