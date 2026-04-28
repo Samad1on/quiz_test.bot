@@ -1,5 +1,5 @@
 import fs from "fs";
-
+import quizSavol from "../src/data/questions.txt";
 export function loadQuestions() {
   const data = fs.readFileSync("./questions.txt", "utf-8");
 
