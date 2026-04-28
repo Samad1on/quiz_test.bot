@@ -1,53 +1,71 @@
-import { setState, getState } from "../state/user.state.js";
-import { quizKeyboard } from "../keyboards/quiz.keyboard.js";
+let users = {};
 
-let questions = [];
+const questions = [
+  {
+    question: "Tilshunoslik nimani o‘rganadi?",
+    answers: ["Tilni", "Matematikani", "Tarixni", "Fizikani"],
+    correct: 0,
+  },
+  {
+    question: "Morfema nima?",
+    answers: ["So‘z qismi", "Gap", "Jumla", "Tovush"],
+    correct: 0,
+  },
+  {
+    question: "Ot nima?",
+    answers: ["Predmet nomi", "Harakat", "Belgi", "Raqam"],
+    correct: 0,
+  },
+];
 
+/* ========================= */
 export async function initQuiz() {
-  const mod = await import("../services/quiz.service.js");
-  questions = await mod.loadQuestions();
-
-  console.log("✅ Loaded:", questions.length);
+  console.log("Quiz loaded");
 }
 
-export function startQuiz(ctx) {
-  const userId = ctx.from.id;
-
-  setState(userId, { step: 0, score: 0 });
-
-  sendQuestion(ctx);
+/* ========================= */
+export async function resetUser(userId) {
+  users[userId] = {
+    index: 0,
+    correct: 0,
+    wrong: 0,
+    score: 0,
+  };
 }
 
-export function handleAnswer(ctx, index) {
-  const userId = ctx.from.id;
+/* ========================= */
+export async function getNextQuestion(userId) {
+  const u = users[userId];
 
-  const state = getState(userId);
-  if (!state) return ctx.reply("Start bosing /start");
+  if (!u) return null;
 
-  const q = questions[state.step];
+  return questions[u.index] || null;
+}
 
-  if (!q) return ctx.reply("Savol topilmadi");
+/* ========================= */
+export async function handleAnswer(userId, answerIndex) {
+  const u = users[userId];
+  const q = questions[u.index];
 
-  if (index === q.answer) {
-    state.score++;
-    ctx.reply("✅ To‘g‘ri!");
+  if (!u || !q) return "❌ Xato";
+
+  let result = "";
+
+  if (answerIndex === q.correct) {
+    u.correct++;
+    u.score += 10;
+    result = "✅ To‘g‘ri!";
   } else {
-    ctx.reply(`❌ Noto‘g‘ri\nTo‘g‘ri javob: ${q.options[q.answer]}`);
+    u.wrong++;
+    result = "❌ Noto‘g‘ri!";
   }
 
-  state.step++;
-  setState(userId, state);
+  u.index++;
 
-  if (state.step >= questions.length) {
-    return ctx.reply(`🎉 Tugadi\n🏆 ${state.score}/${questions.length}`);
-  }
-
-  sendQuestion(ctx);
+  return result;
 }
 
-function sendQuestion(ctx) {
-  const state = getState(ctx.from.id);
-  const q = questions[state.step];
-
-  ctx.reply(`❓ ${q.q}`, quizKeyboard(q.options));
+/* ========================= */
+export function getScore(userId) {
+  return users[userId] || { correct: 0, wrong: 0, score: 0 };
 }
