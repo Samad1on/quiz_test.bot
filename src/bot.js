@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 
 import {
   initQuiz,
-  getNextQuestion,
+  getRandomQuestion,
   handleAnswer,
   resetUser,
   stopQuiz,
@@ -13,9 +13,6 @@ dotenv.config();
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-/* =========================
-   USER TIMERS (MUHIM)
-========================= */
 const timers = {};
 
 /* =========================
@@ -24,11 +21,11 @@ const timers = {};
 bot.start(async (ctx) => {
   await resetUser(ctx.from.id);
 
-  return ctx.reply("🚀 Testni boshlash:", {
+  return ctx.reply("🚀 Infinite Quiz", {
     reply_markup: {
       inline_keyboard: [
         [{ text: "▶ START", callback_data: "begin_quiz" }],
-        [{ text: "⛔ STOP TEST", callback_data: "stop_quiz" }],
+        [{ text: "⛔ STOP", callback_data: "stop_quiz" }],
       ],
     },
   });
@@ -46,7 +43,7 @@ bot.action("stop_quiz", async (ctx) => {
     clearTimeout(timers[ctx.from.id]);
   }
 
-  return ctx.reply("⛔ Test to‘xtatildi");
+  return ctx.reply("⛔ Test to‘xtadi");
 });
 
 /* =========================
@@ -61,16 +58,14 @@ bot.action("begin_quiz", async (ctx) => {
 });
 
 /* =========================
-   SEND QUESTION (FIXED)
+   SEND QUESTION (INFINITE)
 ========================= */
 async function sendQuestion(ctx) {
-  const q = await getNextQuestion(ctx.from.id);
-
-  if (!q) {
-    return ctx.reply("🏁 Test tugadi");
-  }
-
   const userId = ctx.from.id;
+
+  const q = await getRandomQuestion(userId);
+
+  if (!q) return;
 
   const buttons = q.answers.map((a, i) => [
     { text: a, callback_data: `answer_${i}` },
@@ -87,16 +82,13 @@ async function sendQuestion(ctx) {
     },
   );
 
-  // ❗ OLD TIMER CLEAR
   if (timers[userId]) {
     clearTimeout(timers[userId]);
   }
 
-  // ⏰ NEW TIMER
   timers[userId] = setTimeout(() => {
     ctx.telegram.sendMessage(ctx.chat.id, "⏰ Vaqt tugadi!");
-
-    sendQuestion(ctx); // next question
+    sendQuestion(ctx);
   }, 30000);
 }
 
@@ -104,14 +96,13 @@ async function sendQuestion(ctx) {
    ANSWER
 ========================= */
 bot.action(/answer_(\d+)/, async (ctx) => {
+  const userId = ctx.from.id;
   const index = Number(ctx.match[1]);
 
   await ctx.answerCbQuery();
 
-  const userId = ctx.from.id;
-
   if (timers[userId]) {
-    clearTimeout(timers[userId]); // ❗ timer stop
+    clearTimeout(timers[userId]);
   }
 
   const res = await handleAnswer(userId, index);
@@ -120,7 +111,7 @@ bot.action(/answer_(\d+)/, async (ctx) => {
 
   setTimeout(() => {
     sendQuestion(ctx);
-  }, 800);
+  }, 500);
 });
 
 /* =========================
@@ -131,5 +122,5 @@ bot.action(/answer_(\d+)/, async (ctx) => {
 
   bot.launch();
 
-  console.log("🤖 PRO Quiz Bot started");
+  console.log("🤖 Infinite Quiz Bot started");
 })();
