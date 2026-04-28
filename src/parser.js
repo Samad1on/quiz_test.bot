@@ -20,15 +20,29 @@ export function parseQuestions(filePath) {
 
     const question = parts[0];
 
-    const answers = parts.slice(1).map((a) => a.replace("#", ""));
-    const correctIndex = parts.findIndex((a) => a.startsWith("#")) - 1;
+    const answers = [];
+    let correct = -1;
 
-    const correct = parts.slice(1).findIndex((a) => a.startsWith("#"));
+    // 🔥 CLEAN LOOP (BEST PRACTICE)
+    for (let i = 1; i < parts.length; i++) {
+      const item = parts[i];
+
+      if (item.startsWith("#")) {
+        correct = i - 1;
+        answers.push(item.replace("#", "").trim());
+      } else {
+        answers.push(item);
+      }
+    }
+
+    // 🔥 safety check
+    if (correct === -1) correct = 0;
 
     questions.push({
+      id: questions.length + 1,
       question,
       answers,
-      correct: correct >= 0 ? correct : 0,
+      correct,
     });
   }
 
