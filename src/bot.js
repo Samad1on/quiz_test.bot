@@ -6,7 +6,7 @@ import {
   getNextQuestion,
   handleAnswer,
   resetUser,
-  getScore,
+  stopQuiz,
 } from "./handlers/quiz.handler.js";
 
 dotenv.config();
@@ -14,23 +14,39 @@ dotenv.config();
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
 /* =========================
+   USER TIMERS (MUHIM)
+========================= */
+const timers = {};
+
+/* =========================
    START
 ========================= */
 bot.start(async (ctx) => {
   await resetUser(ctx.from.id);
 
-  return ctx.reply(
-    `❓ TEST BOT
-
-👉 Boshlash uchun START bosing`,
-    {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "🚀 START TEST", callback_data: "begin_quiz" }],
-        ],
-      },
+  return ctx.reply("🚀 Testni boshlash:", {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "▶ START", callback_data: "begin_quiz" }],
+        [{ text: "⛔ STOP TEST", callback_data: "stop_quiz" }],
+      ],
     },
-  );
+  });
+});
+
+/* =========================
+   STOP
+========================= */
+bot.action("stop_quiz", async (ctx) => {
+  await ctx.answerCbQuery();
+
+  stopQuiz(ctx.from.id);
+
+  if (timers[ctx.from.id]) {
+    clearTimeout(timers[ctx.from.id]);
+  }
+
+  return ctx.reply("⛔ Test to‘xtatildi");
 });
 
 /* =========================
@@ -39,35 +55,28 @@ bot.start(async (ctx) => {
 bot.action("begin_quiz", async (ctx) => {
   await ctx.answerCbQuery();
 
-  await ctx.reply("📘 Test boshlandi!");
+  await resetUser(ctx.from.id);
 
   sendQuestion(ctx);
 });
 
 /* =========================
-   SEND QUESTION
+   SEND QUESTION (FIXED)
 ========================= */
 async function sendQuestion(ctx) {
   const q = await getNextQuestion(ctx.from.id);
 
   if (!q) {
-    const score = getScore(ctx.from.id);
-
-    return ctx.reply(
-      `🏁 TEST TUGADI
-
-📊 Natija:
-✔ To‘g‘ri javoblar: ${score.correct}
-❌ Xatolar: ${score.wrong}
-⭐ Ball: ${score.score}`,
-    );
+    return ctx.reply("🏁 Test tugadi");
   }
+
+  const userId = ctx.from.id;
 
   const buttons = q.answers.map((a, i) => [
     { text: a, callback_data: `answer_${i}` },
   ]);
 
-  ctx.reply(
+  await ctx.reply(
     `❓ ${q.question}
 
 ⏳ 30 sekund`,
@@ -78,28 +87,40 @@ async function sendQuestion(ctx) {
     },
   );
 
-  // 30 sekund timer
-  setTimeout(() => {
+  // ❗ OLD TIMER CLEAR
+  if (timers[userId]) {
+    clearTimeout(timers[userId]);
+  }
+
+  // ⏰ NEW TIMER
+  timers[userId] = setTimeout(() => {
     ctx.telegram.sendMessage(ctx.chat.id, "⏰ Vaqt tugadi!");
-    sendQuestion(ctx);
+
+    sendQuestion(ctx); // next question
   }, 30000);
 }
 
 /* =========================
-   ANSWER HANDLER
+   ANSWER
 ========================= */
 bot.action(/answer_(\d+)/, async (ctx) => {
   const index = Number(ctx.match[1]);
 
   await ctx.answerCbQuery();
 
-  const result = await handleAnswer(ctx.from.id, index);
+  const userId = ctx.from.id;
 
-  await ctx.reply(result);
+  if (timers[userId]) {
+    clearTimeout(timers[userId]); // ❗ timer stop
+  }
+
+  const res = await handleAnswer(userId, index);
+
+  await ctx.reply(res);
 
   setTimeout(() => {
     sendQuestion(ctx);
-  }, 1000);
+  }, 800);
 });
 
 /* =========================

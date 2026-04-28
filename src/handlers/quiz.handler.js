@@ -2,18 +2,18 @@ let users = {};
 
 const questions = [
   {
-    question: "Tilshunoslik nimani o‘rganadi?",
-    answers: ["Tilni", "Matematikani", "Tarixni", "Fizikani"],
+    question: "Ot nima?",
+    answers: ["So‘z turi", "Raqam", "Tovush", "Gap"],
+    correct: 0,
+  },
+  {
+    question: "Fe’l nima?",
+    answers: ["Harakat", "Predmet", "Belgi", "Son"],
     correct: 0,
   },
   {
     question: "Morfema nima?",
-    answers: ["So‘z qismi", "Gap", "Jumla", "Tovush"],
-    correct: 0,
-  },
-  {
-    question: "Ot nima?",
-    answers: ["Predmet nomi", "Harakat", "Belgi", "Raqam"],
+    answers: ["So‘z qismi", "Gap", "Matn", "Tovush"],
     correct: 0,
   },
 ];
@@ -27,45 +27,51 @@ export async function initQuiz() {
 export async function resetUser(userId) {
   users[userId] = {
     index: 0,
-    correct: 0,
-    wrong: 0,
+    used: [],
     score: 0,
   };
+}
+
+/* ========================= */
+export function stopQuiz(userId) {
+  if (users[userId]) {
+    users[userId].stopped = true;
+  }
 }
 
 /* ========================= */
 export async function getNextQuestion(userId) {
   const u = users[userId];
 
-  if (!u) return null;
+  if (!u || u.stopped) return null;
 
-  return questions[u.index] || null;
+  const available = questions.filter((_, i) => !u.used.includes(i));
+
+  if (available.length === 0) return null;
+
+  const random = available[Math.floor(Math.random() * available.length)];
+  const index = questions.indexOf(random);
+
+  u.used.push(index);
+
+  return random;
 }
 
 /* ========================= */
 export async function handleAnswer(userId, answerIndex) {
   const u = users[userId];
-  const q = questions[u.index];
 
-  if (!u || !q) return "❌ Xato";
+  if (!u) return "❌ error";
 
-  let result = "";
+  const qIndex = u.used[u.used.length - 1];
+  const q = questions[qIndex];
+
+  if (!q) return "❌ error";
 
   if (answerIndex === q.correct) {
-    u.correct++;
     u.score += 10;
-    result = "✅ To‘g‘ri!";
-  } else {
-    u.wrong++;
-    result = "❌ Noto‘g‘ri!";
+    return "✅ To‘g‘ri!";
   }
 
-  u.index++;
-
-  return result;
-}
-
-/* ========================= */
-export function getScore(userId) {
-  return users[userId] || { correct: 0, wrong: 0, score: 0 };
+  return "❌ Noto‘g‘ri!";
 }
