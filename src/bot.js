@@ -6,7 +6,7 @@ import {
   stopQuiz,
   answerHandler,
   initUser,
-} from "./handlers/quiz.handler";
+} from "./handlers/quiz.handler.js";
 
 dotenv.config();
 
