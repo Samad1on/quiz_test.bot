@@ -1,29 +1,123 @@
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+// ================= DATA =================
+const users = {};
+const timers = {};
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// ================= QUESTIONS =================
+export const questions = Array.from({ length: 491 }, (_, i) => ({
+  id: i,
+  question: `${i + 1}-savol: Ot nima?`,
+  answers: ["So‘z turi", "Gap", "Tovush", "Raqam"],
+  correct: 0,
+}));
 
-/* ✅ HAR DOIM TO‘G‘RI PATH */
-const filePath = path.join(__dirname, "../data/questions.txt");
-
-if (!fs.existsSync(filePath)) {
-  throw new Error("questions.txt topilmadi (data papkani tekshir)");
+// ================= INIT USER =================
+export function initUser(id) {
+  if (!users[id]) {
+    users[id] = {
+      used: [],
+      score: 0,
+      active: false,
+    };
+  }
 }
 
-const text = fs.readFileSync(filePath, "utf-8");
+// ================= RANDOM QUESTION =================
+export function getRandomQuestion(id) {
+  const user = users[id];
 
-export const questions = text.split("++++").map((b, i) => {
-  const lines = b.trim().split("\n").filter(Boolean);
+  let available = questions.filter((q) => !user.used.includes(q.id));
 
-  return {
-    id: i,
-    question: lines[0],
-    answers: lines.slice(1).map((l) => l.replace("#", "")),
-    correct: 0,
-  };
-});
+  if (available.length === 0) {
+    user.used = [];
+    available = questions;
+  }
 
-export const users = {};
-export const timers = {};
+  const q = available[Math.floor(Math.random() * available.length)];
+  user.used.push(q.id);
+
+  return q;
+}
+
+// ================= SEND QUESTION =================
+export async function sendQuestion(ctx, bot) {
+  const id = ctx.from.id;
+  const user = users[id];
+
+  if (!user || !user.active) return;
+
+  const q = getRandomQuestion(id);
+
+  const buttons = q.answers.map((a, i) => [
+    { text: a, callback_data: `ans_${i}` },
+  ]);
+
+  buttons.push([{ text: "⛔ STOP TEST", callback_data: "stop" }]);
+
+  await ctx.reply(
+    `❓ ${q.question}
+
+⏳ 30 sekund`,
+    {
+      reply_markup: { inline_keyboard: buttons },
+    },
+  );
+
+  if (timers[id]) clearTimeout(timers[id]);
+
+  timers[id] = setTimeout(() => {
+    ctx.telegram.sendMessage(ctx.chat.id, "⏰ Vaqt tugadi!");
+    sendQuestion(ctx, bot);
+  }, 30000);
+}
+
+// ================= START QUIZ =================
+export function startQuiz(ctx, bot) {
+  const id = ctx.from.id;
+
+  initUser(id);
+  users[id].active = true;
+
+  sendQuestion(ctx, bot);
+}
+
+// ================= STOP QUIZ =================
+export function stopQuiz(ctx) {
+  const id = ctx.from.id;
+
+  if (timers[id]) clearTimeout(timers[id]);
+
+  if (users[id]) {
+    users[id].active = false;
+    users[id].used = [];
+    users[id].score = 0;
+  }
+
+  ctx.reply("⛔ Test to‘xtadi");
+}
+
+// ================= ANSWER HANDLER =================
+export function answerHandler(ctx, bot) {
+  const id = ctx.from.id;
+  const user = users[id];
+
+  if (!user || !user.active) return;
+
+  const last = user.used[user.used.length - 1];
+  const q = questions.find((x) => x.id === last);
+
+  const ans = Number(ctx.match[1]);
+
+  if (ans === q.correct) {
+    user.score += 10;
+    ctx.reply(`✅ To‘g‘ri | Ball: ${user.score}`);
+  } else {
+    ctx.reply(`❌ Noto‘g‘ri | Ball: ${user.score}`);
+  }
+
+  if (timers[id]) clearTimeout(timers[id]);
+
+  setTimeout(() => sendQuestion(ctx, bot), 700);
+}
+
+// ================= EXPORTS =================
+export { users, timers };
