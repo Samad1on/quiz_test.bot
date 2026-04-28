@@ -7,16 +7,29 @@ dotenv.config();
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-/* ================= START ================= */
+/* ================= START MENU ================= */
 bot.start((ctx) => {
-  ctx.reply("🎯 Quiz Bot Ready\n/start bosib testni boshlang");
+  ctx.reply(
+    `🎯 Quiz Bot Ready
+
+Testni boshlash uchun START tugmasini bosing 👇`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🚀 START TEST", callback_data: "start_test" }],
+          [{ text: "⛔ STOP TEST", callback_data: "stop" }],
+        ],
+      },
+    },
+  );
 });
 
-/* ================= CALLBACKS ================= */
+/* ================= START TEST ================= */
 bot.action("start_test", (ctx) => {
   startQuiz(ctx, bot);
 });
 
+/* ================= STOP ================= */
 bot.action("stop", (ctx) => {
   stopQuiz(ctx);
 });
