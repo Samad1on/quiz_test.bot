@@ -1,63 +1,112 @@
-let users = {};
+const users = {};
+const timers = {};
 
-const questions = globalThis.ALL_QUESTIONS || [];
+/* ================= 491 SAVOL ================= */
+const questions = Array.from({ length: 491 }, (_, i) => ({
+  id: i,
+  question: `${i + 1}-savol: Ot nima?`,
+  answers: ["So‘z turi", "Gap", "Tovush", "Raqam"],
+  correct: 0,
+}));
 
-export async function initQuiz() {
-  console.log("Quiz loaded:", questions.length);
-}
-
-/* ========================= */
-export async function resetUser(userId) {
-  users[userId] = {
-    used: [],
-    score: 0,
-    stopped: false,
-  };
-}
-
-/* ========================= */
-export function stopQuiz(userId) {
-  if (users[userId]) {
-    users[userId].stopped = true;
+/* ================= USER INIT ================= */
+function init(userId) {
+  if (!users[userId]) {
+    users[userId] = {
+      used: [],
+      score: 0,
+      active: false,
+    };
   }
 }
 
-/* ========================= */
-export async function getRandomQuestion(userId) {
-  const u = users[userId];
+/* ================= RANDOM ================= */
+function getRandom(userId) {
+  const user = users[userId];
 
-  if (!u || u.stopped) return null;
-
-  const available = questions.filter((_, i) => !u.used.includes(i));
+  const available = questions.filter((q) => !user.used.includes(q.id));
 
   if (available.length === 0) {
-    u.used = []; // restart cycle (infinite)
-    return getRandomQuestion(userId);
+    user.used = [];
+    return getRandom(userId);
   }
 
   const q = available[Math.floor(Math.random() * available.length)];
-  const index = questions.indexOf(q);
-
-  u.used.push(index);
+  user.used.push(q.id);
 
   return q;
 }
 
-/* ========================= */
-export async function handleAnswer(userId, i) {
-  const u = users[userId];
+/* ================= SEND QUESTION ================= */
+async function sendQuestion(ctx, bot) {
+  const id = ctx.from.id;
+  const user = users[id];
 
-  if (!u) return "❌ error";
+  if (!user || !user.active) return;
 
-  const last = u.used[u.used.length - 1];
-  const q = questions[last];
+  const q = getRandom(id);
 
-  if (!q) return "❌ error";
+  const buttons = q.answers.map((a, i) => [
+    { text: a, callback_data: `ans_${i}` },
+  ]);
 
-  if (i === q.correct) {
-    u.score += 10;
-    return `✅ To‘g‘ri | Ball: ${u.score}`;
+  // STOP HAR DOIM PASDA
+  buttons.push([{ text: "⛔ STOP TEST", callback_data: "stop" }]);
+
+  await ctx.reply(
+    `❓ ${q.question}
+
+⏳ 30 sekund`,
+    {
+      reply_markup: { inline_keyboard: buttons },
+    },
+  );
+
+  if (timers[id]) clearTimeout(timers[id]);
+
+  timers[id] = setTimeout(() => {
+    bot.telegram.sendMessage(ctx.chat.id, "⏰ Vaqt tugadi!");
+    sendQuestion(ctx, bot);
+  }, 30000);
+}
+
+/* ================= START QUIZ ================= */
+export function startQuiz(ctx, bot) {
+  const id = ctx.from.id;
+
+  init(id);
+  users[id].active = true;
+
+  sendQuestion(ctx, bot);
+}
+
+/* ================= STOP QUIZ ================= */
+export function stopQuiz(userId) {
+  if (timers[userId]) clearTimeout(timers[userId]);
+
+  if (users[userId]) {
+    users[userId].active = false;
+    users[userId].used = [];
+    users[userId].score = 0;
+  }
+}
+
+/* ================= ANSWER ================= */
+export function answerHandler(ctx, bot) {
+  const id = ctx.from.id;
+  const user = users[id];
+
+  const last = user.used[user.used.length - 1];
+  const q = questions.find((x) => x.id === last);
+
+  const ans = Number(ctx.match[1]);
+
+  if (ans === q.correct) {
+    user.score += 10;
+    ctx.reply(`✅ To‘g‘ri | Ball: ${user.score}`);
+  } else {
+    ctx.reply(`❌ Noto‘g‘ri | Ball: ${user.score}`);
   }
 
-  return `❌ Noto‘g‘ri | Ball: ${u.score}`;
+  setTimeout(() => sendQuestion(ctx, bot), 800);
 }

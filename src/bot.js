@@ -1,138 +1,46 @@
 import { Telegraf } from "telegraf";
 import dotenv from "dotenv";
-
-import {
-  initQuiz,
-  getRandomQuestion,
-  handleAnswer,
-  resetUser,
-  stopQuiz,
-} from "./handlers/quiz.handler.js";
+import { startQuiz, stopQuiz, answerHandler } from "./quiz.js";
 
 dotenv.config();
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-const timers = {};
-
-/* =========================
-   MENU
-========================= */
-function mainMenu() {
+/* ================= MENU ================= */
+function menu() {
   return {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "🚀 START TEST", callback_data: "begin_quiz" }],
-        [{ text: "⛔ STOP TEST", callback_data: "stop_quiz" }],
+        [{ text: "🚀 START TEST", callback_data: "start" }],
+        [{ text: "⛔ STOP TEST", callback_data: "stop" }],
       ],
     },
   };
 }
 
-/* =========================
-   START
-========================= */
-bot.start(async (ctx) => {
-  await resetUser(ctx.from.id);
-
-  return ctx.reply("🎯 Quiz Bot", mainMenu());
+/* ================= START ================= */
+bot.start((ctx) => {
+  return ctx.reply("🎯 SMART QUIZ BOT", menu());
 });
 
-/* =========================
-   STOP (RESET + MENU)
-========================= */
-bot.action("stop_quiz", async (ctx) => {
+/* ================= START TEST ================= */
+bot.action("start", async (ctx) => {
   await ctx.answerCbQuery();
-
-  const userId = ctx.from.id;
-
-  stopQuiz(userId);
-
-  if (timers[userId]) {
-    clearTimeout(timers[userId]);
-  }
-
-  await resetUser(userId);
-
-  return ctx.reply("⛔ Test to‘xtatildi", mainMenu());
+  startQuiz(ctx, bot);
 });
 
-/* =========================
-   START QUIZ
-========================= */
-bot.action("begin_quiz", async (ctx) => {
+/* ================= STOP TEST ================= */
+bot.action("stop", async (ctx) => {
   await ctx.answerCbQuery();
-
-  const userId = ctx.from.id;
-
-  await resetUser(userId);
-
-  sendQuestion(ctx);
+  stopQuiz(ctx.from.id);
+  return ctx.reply("⛔ Test to‘xtadi", menu());
 });
 
-/* =========================
-   SEND QUESTION (FIX RANDOM + NO REPEAT)
-========================= */
-async function sendQuestion(ctx) {
-  const userId = ctx.from.id;
-
-  const q = await getRandomQuestion(userId);
-
-  if (!q) return ctx.reply("❌ Savol topilmadi");
-
-  const buttons = q.answers.map((a, i) => [
-    { text: a, callback_data: `answer_${i}` },
-  ]);
-
-  // ⚡ STOP BUTTON HAR DOIM
-  buttons.push([{ text: "⛔ STOP TEST", callback_data: "stop_quiz" }]);
-
-  await ctx.reply(
-    `❓ ${q.question}
-
-⏳ 30 sekund`,
-    {
-      reply_markup: {
-        inline_keyboard: buttons,
-      },
-    },
-  );
-
-  if (timers[userId]) clearTimeout(timers[userId]);
-
-  timers[userId] = setTimeout(() => {
-    ctx.telegram.sendMessage(ctx.chat.id, "⏰ Vaqt tugadi!");
-    sendQuestion(ctx);
-  }, 30000);
-}
-
-/* =========================
-   ANSWER
-========================= */
-bot.action(/answer_(\d+)/, async (ctx) => {
-  const userId = ctx.from.id;
-  const index = Number(ctx.match[1]);
-
+/* ================= ANSWER ================= */
+bot.action(/ans_(\d+)/, async (ctx) => {
   await ctx.answerCbQuery();
-
-  if (timers[userId]) clearTimeout(timers[userId]);
-
-  const res = await handleAnswer(userId, index);
-
-  await ctx.reply(res);
-
-  setTimeout(() => {
-    sendQuestion(ctx);
-  }, 500);
+  answerHandler(ctx, bot);
 });
 
-/* =========================
-   INIT
-========================= */
-(async () => {
-  await initQuiz();
-
-  bot.launch();
-
-  console.log("🤖 FINAL Quiz Bot started");
-})();
+bot.launch();
+console.log("🤖 BOT STARTED");
