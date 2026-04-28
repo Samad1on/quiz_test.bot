@@ -1,9 +1,5 @@
 import { Telegraf } from "telegraf";
 import dotenv from "dotenv";
-
-dotenv.config();
-
-// 👇 TO‘G‘RI IMPORT (MUHIM .js BOR)
 import {
   startQuiz,
   stopQuiz,
@@ -11,10 +7,14 @@ import {
   initUser,
 } from "./handlers/quiz.handler.js";
 
+dotenv.config();
+
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// ================= START =================
+// START
 bot.start((ctx) => {
+  initUser(ctx.from.id);
+
   ctx.reply("🎯 Quiz Bot Ready", {
     reply_markup: {
       inline_keyboard: [
@@ -25,37 +25,39 @@ bot.start((ctx) => {
   });
 });
 
-// DEBUG
+// DEBUG (MUST HAVE)
 bot.on("callback_query", (ctx) => {
   console.log("CLICK:", ctx.callbackQuery.data);
 });
 
-// START
+// START QUIZ
 bot.action("start", async (ctx) => {
-  await ctx.answerCbQuery();
-  console.log("START WORKED");
-  startQuiz(ctx);
+  try {
+    await ctx.answerCbQuery();
+    console.log("START PRESSED");
+    startQuiz(ctx);
+  } catch (e) {
+    console.log("START ERROR:", e);
+    ctx.reply("Xatolik chiqdi");
+  }
 });
 
-// ================= STOP QUIZ =================
+// STOP
 bot.action("stop", async (ctx) => {
   await ctx.answerCbQuery();
   stopQuiz(ctx);
 });
 
-// ================= ANSWER =================
-// quiz.handler ichida answer format: answer_0, answer_1 ...
+// ANSWER
 bot.action(/answer_(\d+)/, async (ctx) => {
   await ctx.answerCbQuery();
   answerHandler(ctx);
 });
 
-// ================= ERROR HANDLER =================
-bot.catch((err, ctx) => {
+// GLOBAL ERROR
+bot.catch((err) => {
   console.log("BOT ERROR:", err);
 });
 
-// ================= LAUNCH =================
 bot.launch();
-
-console.log("🤖 Quiz bot ishlayapti...");
+console.log("BOT RUNNING");

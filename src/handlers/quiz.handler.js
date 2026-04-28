@@ -1,13 +1,15 @@
-import { loadQuestions } from "../loeder.js";
-import { quizKeyboard } from "../keyboards/quiz.keyboard.js";
-
-const questions = loadQuestions();
-
-// ================= USER STATE =================
 const users = {};
 const timers = {};
 
-// ================= INIT =================
+const questions = [
+  {
+    id: 1,
+    question: "Ot nima?",
+    answers: ["So‘z turi", "Gap", "Tovush", "Raqam"],
+    correct: 0,
+  },
+];
+
 export function initUser(id) {
   if (!users[id]) {
     users[id] = {
@@ -18,42 +20,39 @@ export function initUser(id) {
   }
 }
 
-// ================= RANDOM QUESTION =================
-function getRandomQuestion() {
+function getQuestion() {
   return questions[Math.floor(Math.random() * questions.length)];
 }
 
-// ================= CLEAR TIMER =================
 function clearTimer(id) {
-  if (timers[id]) {
-    clearTimeout(timers[id]);
-    delete timers[id];
-  }
+  if (timers[id]) clearTimeout(timers[id]);
 }
 
-// ================= SEND QUESTION =================
 export async function sendQuestion(ctx) {
   const id = ctx.from.id;
   const user = users[id];
 
   if (!user || !user.active) return;
 
-  const q = getRandomQuestion();
+  const q = getQuestion();
   user.current = q;
 
-  await ctx.reply(`❓ ${q.question}\n\n⏳ 30 sekund`, quizKeyboard(q.answers));
+  await ctx.reply(`❓ ${q.question}`, {
+    reply_markup: {
+      inline_keyboard: q.answers.map((a, i) => [
+        { text: a, callback_data: `answer_${i}` },
+      ]),
+    },
+  });
 
   clearTimer(id);
 
   timers[id] = setTimeout(() => {
-    if (!users[id]?.active) return;
-
     ctx.telegram.sendMessage(ctx.chat.id, "⏰ Vaqt tugadi!");
     sendQuestion(ctx);
   }, 30000);
 }
 
-// ================= START QUIZ =================
 export function startQuiz(ctx) {
   const id = ctx.from.id;
 
@@ -62,10 +61,13 @@ export function startQuiz(ctx) {
   users[id].active = true;
   users[id].score = 0;
 
-  sendQuestion(ctx);
+  console.log("QUIZ START OK");
+
+  sendQuestion(ctx).catch((err) => {
+    console.log("SEND QUESTION ERROR:", err);
+  });
 }
 
-// ================= STOP QUIZ =================
 export function stopQuiz(ctx) {
   const id = ctx.from.id;
 
@@ -74,35 +76,30 @@ export function stopQuiz(ctx) {
   if (users[id]) {
     users[id].active = false;
     users[id].score = 0;
-    users[id].current = null;
   }
 
   ctx.reply("⛔ Test to‘xtadi");
 }
 
-// ================= ANSWER =================
 export function answerHandler(ctx) {
   const id = ctx.from.id;
   const user = users[id];
 
   if (!user || !user.active) return;
 
-  clearTimer(id);
-
-  const answer = Number(ctx.match[1]);
+  const ans = Number(ctx.match[1]);
   const q = user.current;
 
   if (!q) return;
 
-  if (answer === q.correct) {
+  if (ans === q.correct) {
     user.score += 10;
-    ctx.reply(`✅ To‘g‘ri! | Ball: ${user.score}`);
+    ctx.reply("✅ To‘g‘ri!");
   } else {
-    ctx.reply(`❌ Noto‘g‘ri | Ball: ${user.score}`);
+    ctx.reply("❌ Noto‘g‘ri!");
   }
 
-  setTimeout(() => sendQuestion(ctx), 800);
+  sendQuestion(ctx);
 }
 
-// ================= EXPORTS =================
 export { users, timers };
