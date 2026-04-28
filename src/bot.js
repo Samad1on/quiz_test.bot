@@ -1,12 +1,7 @@
 import { Telegraf } from "telegraf";
 import dotenv from "dotenv";
 
-import {
-  initUser,
-  startQuiz,
-  stopQuiz,
-  answerHandler,
-} from "./quiz.service.js";
+import { initUser, startQuiz, stopQuiz, answerHandler } from "./quiz.js";
 
 dotenv.config();
 
@@ -14,7 +9,7 @@ const bot = new Telegraf(process.env.BOT_TOKEN);
 
 // ================= START =================
 bot.start((ctx) => {
-  initUser(ctx.from.id);
+  initUser(ctx);
 
   ctx.reply("🎯 Smart Quiz Bot", {
     reply_markup: {

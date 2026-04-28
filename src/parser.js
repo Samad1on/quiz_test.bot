@@ -35,7 +35,7 @@ export function parseQuestions() {
 
       if (item.startsWith("#")) {
         correct = i - 1;
-        answers.push(item.replace("#", "").trim());
+        answers.push(item.slice(1).trim());
       } else {
         answers.push(item);
       }
