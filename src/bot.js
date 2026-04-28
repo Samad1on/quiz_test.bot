@@ -1,21 +1,13 @@
 import { Telegraf } from "telegraf";
 import dotenv from "dotenv";
-
-import {
-  startQuiz,
-  stopQuiz,
-  answerHandler,
-  initUser,
-} from "./handlers/quiz.handler.js";
+import { startQuiz } from "./quiz.handler.js";
 
 dotenv.config();
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// ================= START =================
+// START MESSAGE
 bot.start((ctx) => {
-  initUser(ctx.from.id);
-
   ctx.reply("🎯 Quiz Bot Ready", {
     reply_markup: {
       inline_keyboard: [[{ text: "🚀 Boshlash", callback_data: "start" }]],
@@ -23,25 +15,18 @@ bot.start((ctx) => {
   });
 });
 
-// ================= START QUIZ =================
-bot.action("start", (ctx) => {
-  ctx.answerCbQuery();
+// DEBUG (MUHIM)
+bot.on("callback_query", (ctx) => {
+  console.log("CLICK:", ctx.callbackQuery.data);
+});
+
+// START ACTION
+bot.action("start", async (ctx) => {
+  await ctx.answerCbQuery();
+  console.log("START BOSILDI");
   startQuiz(ctx);
 });
 
-// ================= STOP =================
-bot.action("stop", (ctx) => {
-  ctx.answerCbQuery();
-  stopQuiz(ctx);
-});
-
-// ================= ANSWER =================
-bot.action(/answer_(\d+)/, (ctx) => {
-  ctx.answerCbQuery();
-  answerHandler(ctx);
-});
-
-// ================= LAUNCH =================
 bot.launch();
 
-console.log("🤖 Bot ishlayapti...");
+console.log("🤖 Bot started");
