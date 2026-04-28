@@ -1,7 +1,7 @@
 const users = {};
 const timers = {};
 
-/* ================= 491 SAVOL ================= */
+/* ================= QUESTIONS ================= */
 const questions = Array.from({ length: 491 }, (_, i) => ({
   id: i,
   question: `${i + 1}-savol: Ot nima?`,
@@ -9,7 +9,7 @@ const questions = Array.from({ length: 491 }, (_, i) => ({
   correct: 0,
 }));
 
-/* ================= INIT ================= */
+/* ================= INIT USER ================= */
 function initUser(userId) {
   if (!users[userId]) {
     users[userId] = {
@@ -20,7 +20,7 @@ function initUser(userId) {
   }
 }
 
-/* ================= RANDOM ================= */
+/* ================= RANDOM QUESTION ================= */
 function getRandom(userId) {
   const user = users[userId];
 
@@ -57,20 +57,20 @@ async function sendQuestion(ctx, bot) {
     `❓ ${q.question}
 
 ⏳ 30 sekund`,
-    {
-      reply_markup: { inline_keyboard: buttons },
-    },
+    { reply_markup: { inline_keyboard: buttons } },
   );
 
   if (timers[id]) clearTimeout(timers[id]);
 
   timers[id] = setTimeout(() => {
+    if (!users[id]?.active) return;
+
     bot.telegram.sendMessage(ctx.chat.id, "⏰ Vaqt tugadi!");
     sendQuestion(ctx, bot);
   }, 30000);
 }
 
-/* ================= START QUIZ ================= */
+/* ================= START ================= */
 export function startQuiz(ctx, bot) {
   const id = ctx.from.id;
 
@@ -80,15 +80,19 @@ export function startQuiz(ctx, bot) {
   sendQuestion(ctx, bot);
 }
 
-/* ================= STOP QUIZ ================= */
-export function stopQuiz(userId) {
-  if (timers[userId]) clearTimeout(timers[userId]);
+/* ================= STOP ================= */
+export function stopQuiz(ctx, bot) {
+  const id = ctx.from.id;
 
-  if (users[userId]) {
-    users[userId].active = false;
-    users[userId].used = [];
-    users[userId].score = 0;
+  if (timers[id]) clearTimeout(timers[id]);
+
+  if (users[id]) {
+    users[id].active = false;
+    users[id].used = [];
+    users[id].score = 0;
   }
+
+  ctx.reply("⛔ Test to‘xtadi");
 }
 
 /* ================= ANSWER ================= */
@@ -96,8 +100,12 @@ export function answerHandler(ctx, bot) {
   const id = ctx.from.id;
   const user = users[id];
 
+  if (!user || !user.active) return;
+
   const last = user.used[user.used.length - 1];
   const q = questions.find((x) => x.id === last);
+
+  if (!q) return;
 
   const ans = Number(ctx.match[1]);
 
@@ -108,5 +116,9 @@ export function answerHandler(ctx, bot) {
     ctx.reply(`❌ Noto‘g‘ri | Ball: ${user.score}`);
   }
 
+  if (timers[id]) clearTimeout(timers[id]);
+
   setTimeout(() => sendQuestion(ctx, bot), 800);
 }
+
+export { users, timers };
