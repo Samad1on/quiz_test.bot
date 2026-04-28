@@ -1,13 +1,17 @@
-import { questions } from "./questions.js";
+import { parseQuestions } from "./parser.js";
 
+// 🔥 TXT dan o‘qiladigan questions
+const questions = parseQuestions("./data/questions.txt");
+
+// ================= USERS =================
 const users = new Map();
 
 // ================= INIT =================
 export function initUser(ctx) {
   users.set(ctx.from.id, {
-    index: 0,
     score: 0,
     used: [],
+    current: null,
   });
 }
 
@@ -17,25 +21,26 @@ function getRandomQuestion(user) {
 
   if (available.length === 0) return null;
 
-  const random = available[Math.floor(Math.random() * available.length)];
-  return random;
+  return available[Math.floor(Math.random() * available.length)];
 }
 
-// ================= START QUIZ =================
+// ================= SEND QUESTION =================
 export function startQuiz(ctx) {
   const user = users.get(ctx.from.id);
+
+  if (!user) return;
 
   const q = getRandomQuestion(user);
 
   if (!q) {
-    return ctx.reply(`🎉 Test tugadi! Ball: ${user.score}`);
+    return ctx.reply(`🎉 Test tugadi!\nBall: ${user.score}`);
   }
 
   user.current = q;
 
-  ctx.reply(`❓ ${q.q}\n\n⏳ 30 sekund`, {
+  ctx.reply(`❓ ${q.question}`, {
     reply_markup: {
-      inline_keyboard: q.a.map((text, i) => [
+      inline_keyboard: q.answers.map((text, i) => [
         { text, callback_data: `ans_${i}` },
       ]),
     },
@@ -45,31 +50,35 @@ export function startQuiz(ctx) {
 // ================= ANSWER =================
 export function answerHandler(ctx, bot, answerIndex) {
   const user = users.get(ctx.from.id);
+
+  if (!user || !user.current) return;
+
   const q = user.current;
 
-  if (!q) return;
+  const isCorrect = Number(answerIndex) === q.correct;
 
-  const correct = q.correct;
-
-  if (Number(answerIndex) === correct) {
+  if (isCorrect) {
     user.score += 10;
-    ctx.reply(`✅ To‘g‘ri | Ball: ${user.score}`);
+    ctx.reply(`✅ To‘g‘ri! | Ball: ${user.score}`);
   } else {
-    ctx.reply(`❌ Noto‘g‘ri | Ball: ${user.score}`);
+    ctx.reply(`❌ Noto‘g‘ri! | Ball: ${user.score}`);
   }
 
   user.used.push(q.id);
+  user.current = null;
 
   setTimeout(() => {
     startQuiz(ctx, bot);
-  }, 1000);
+  }, 800);
 }
 
 // ================= STOP =================
 export function stopQuiz(ctx) {
   const user = users.get(ctx.from.id);
 
-  ctx.reply(`🛑 Stop | Final Ball: ${user?.score || 0}`);
+  if (!user) return;
+
+  ctx.reply(`🛑 Test to‘xtadi\nFinal Ball: ${user.score}`);
 
   users.delete(ctx.from.id);
 }

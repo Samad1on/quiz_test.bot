@@ -24,12 +24,12 @@ export function initUser(id) {
       score: 0,
       active: false,
       current: null,
-      used: [], // 🔥 MUHIM
+      used: [],
     };
   }
 }
 
-// ================= RANDOM WITHOUT REPEAT =================
+// ================= GET QUESTION =================
 function getQuestion(user) {
   const available = questions.filter((q) => !user.used.includes(q.id));
 
@@ -38,7 +38,7 @@ function getQuestion(user) {
   return available[Math.floor(Math.random() * available.length)];
 }
 
-// ================= TIMER CLEAN =================
+// ================= CLEAR TIMER =================
 function clearTimer(id) {
   if (timers[id]) {
     clearTimeout(timers[id]);
@@ -55,10 +55,12 @@ export async function sendQuestion(ctx) {
 
   const q = getQuestion(user);
 
-  // 🔥 test tugadi
+  // 🔥 FINISH
   if (!q) {
     clearTimer(id);
     user.active = false;
+    user.current = null;
+
     return ctx.reply(`🎉 Test tugadi!\nBall: ${user.score}`);
   }
 
@@ -72,14 +74,18 @@ export async function sendQuestion(ctx) {
     },
   });
 
+  // 🔥 TIMER RESET
   clearTimer(id);
 
-  // ================= TIMER =================
   timers[id] = setTimeout(() => {
+    if (!users[id] || !users[id].active) return;
+
     ctx.telegram.sendMessage(ctx.chat.id, "⏰ Vaqt tugadi!");
 
-    // 🔥 eskisini used ga qo‘shib keyingisiga o‘tadi
-    user.used.push(q.id);
+    // 🔥 avoid duplicate question bug
+    if (users[id].current) {
+      users[id].used.push(users[id].current.id);
+    }
 
     sendQuestion(ctx);
   }, 30000);
@@ -94,6 +100,7 @@ export function startQuiz(ctx) {
   users[id].active = true;
   users[id].score = 0;
   users[id].used = [];
+  users[id].current = null;
 
   sendQuestion(ctx).catch((err) => {
     console.log("SEND QUESTION ERROR:", err);
@@ -108,9 +115,10 @@ export function stopQuiz(ctx) {
 
   if (users[id]) {
     users[id].active = false;
+    users[id].current = null;
   }
 
-  ctx.reply("⛔ Test to‘xtadi");
+  ctx.reply(`⛔ Test to‘xtadi\nBall: ${users[id]?.score || 0}`);
 }
 
 // ================= ANSWER =================
@@ -118,16 +126,17 @@ export function answerHandler(ctx) {
   const id = ctx.from.id;
   const user = users[id];
 
-  if (!user || !user.active) return;
+  if (!user || !user.active || !user.current) return;
 
   const ans = Number(ctx.match[1]);
   const q = user.current;
 
-  if (!q) return;
+  // 🔥 IMPORTANT FIX
+  clearTimer(id);
 
-  clearTimer(id); // 🔥 MUHIM: race condition fix
+  const isCorrect = ans === q.correct;
 
-  if (ans === q.correct) {
+  if (isCorrect) {
     user.score += 10;
     ctx.reply(`✅ To‘g‘ri! | Ball: ${user.score}`);
   } else {
@@ -135,8 +144,12 @@ export function answerHandler(ctx) {
   }
 
   user.used.push(q.id);
+  user.current = null;
 
-  sendQuestion(ctx);
+  // 🔥 prevent overlap
+  setTimeout(() => {
+    sendQuestion(ctx);
+  }, 500);
 }
 
 // ================= EXPORT =================
