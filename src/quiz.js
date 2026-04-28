@@ -72,14 +72,35 @@ export async function sendQuestion(ctx, bot) {
 }
 
 /* ================= START ================= */
-export function startQuiz(ctx, bot) {
-  const id = ctx.from.id;
+const users = {};
+const timers = {};
 
-  initUser(id);
+export function initUser(id) {
+  if (!users[id]) {
+    users[id] = {
+      used: new Set(), // 🔥 MUHIM FIX
+      active: false,
+      score: 0,
+    };
+  }
+}
 
-  users[id].active = true;
+/* ================= RANDOM ================= */
+export function getQuestion(id, questions) {
+  const user = users[id];
 
-  sendQuestion(ctx, bot);
+  let available = questions.filter((q) => !user.used.has(q.id));
+
+  if (available.length === 0) {
+    user.used.clear(); // 🔥 RESET TOZA
+    available = questions;
+  }
+
+  const q = available[Math.floor(Math.random() * available.length)];
+
+  user.used.add(q.id);
+
+  return q;
 }
 
 /* ================= STOP ================= */
