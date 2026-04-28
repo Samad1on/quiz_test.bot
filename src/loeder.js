@@ -1,8 +1,7 @@
 import fs from "fs";
-import quizSavol from "../src/data/questions.txt";
-export function loadQuestions() {
-  const data = fs.readFileSync(quizSavol, "utf-8");
 
+const data = fs.readFileSync("./src/data/questions.txt", "utf-8");
+export function loadQuestions() {
   return data
     .split("\n")
     .filter(Boolean)
