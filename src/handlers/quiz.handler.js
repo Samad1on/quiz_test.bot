@@ -1,124 +1,108 @@
+import { loadQuestions } from "../loeder.js";
+import { quizKeyboard } from "../keyboards/quiz.keyboard.js";
+
+const questions = loadQuestions();
+
+// ================= USER STATE =================
 const users = {};
 const timers = {};
 
-/* ================= QUESTIONS ================= */
-const questions = Array.from({ length: 491 }, (_, i) => ({
-  id: i,
-  question: `${i + 1}-savol: Ot nima?`,
-  answers: ["So‘z turi", "Gap", "Tovush", "Raqam"],
-  correct: 0,
-}));
-
-/* ================= INIT USER ================= */
-function initUser(userId) {
-  if (!users[userId]) {
-    users[userId] = {
-      used: [],
+// ================= INIT =================
+export function initUser(id) {
+  if (!users[id]) {
+    users[id] = {
       score: 0,
       active: false,
+      current: null,
     };
   }
 }
 
-/* ================= RANDOM QUESTION ================= */
-function getRandom(userId) {
-  const user = users[userId];
-
-  let available = questions.filter((q) => !user.used.includes(q.id));
-
-  if (available.length === 0) {
-    user.used = [];
-    available = questions;
-  }
-
-  const q = available[Math.floor(Math.random() * available.length)];
-
-  user.used.push(q.id);
-
-  return q;
+// ================= RANDOM QUESTION =================
+function getRandomQuestion() {
+  return questions[Math.floor(Math.random() * questions.length)];
 }
 
-/* ================= SEND QUESTION ================= */
-async function sendQuestion(ctx, bot) {
+// ================= CLEAR TIMER =================
+function clearTimer(id) {
+  if (timers[id]) {
+    clearTimeout(timers[id]);
+    delete timers[id];
+  }
+}
+
+// ================= SEND QUESTION =================
+export async function sendQuestion(ctx) {
   const id = ctx.from.id;
   const user = users[id];
 
   if (!user || !user.active) return;
 
-  const q = getRandom(id);
+  const q = getRandomQuestion();
+  user.current = q;
 
-  const buttons = q.answers.map((a, i) => [
-    { text: a, callback_data: `ans_${i}` },
-  ]);
+  await ctx.reply(`❓ ${q.question}\n\n⏳ 30 sekund`, quizKeyboard(q.answers));
 
-  buttons.push([{ text: "⛔ STOP TEST", callback_data: "stop" }]);
-
-  await ctx.reply(
-    `❓ ${q.question}
-
-⏳ 30 sekund`,
-    { reply_markup: { inline_keyboard: buttons } },
-  );
-
-  if (timers[id]) clearTimeout(timers[id]);
+  clearTimer(id);
 
   timers[id] = setTimeout(() => {
     if (!users[id]?.active) return;
 
-    bot.telegram.sendMessage(ctx.chat.id, "⏰ Vaqt tugadi!");
-    sendQuestion(ctx, bot);
+    ctx.telegram.sendMessage(ctx.chat.id, "⏰ Vaqt tugadi!");
+    sendQuestion(ctx);
   }, 30000);
 }
 
-/* ================= START ================= */
-export function startQuiz(ctx, bot) {
+// ================= START QUIZ =================
+export function startQuiz(ctx) {
   const id = ctx.from.id;
 
   initUser(id);
-  users[id].active = true;
 
-  sendQuestion(ctx, bot);
+  users[id].active = true;
+  users[id].score = 0;
+
+  sendQuestion(ctx);
 }
 
-/* ================= STOP ================= */
-export function stopQuiz(ctx, bot) {
+// ================= STOP QUIZ =================
+export function stopQuiz(ctx) {
   const id = ctx.from.id;
 
-  if (timers[id]) clearTimeout(timers[id]);
+  clearTimer(id);
 
   if (users[id]) {
     users[id].active = false;
-    users[id].used = [];
     users[id].score = 0;
+    users[id].current = null;
   }
 
   ctx.reply("⛔ Test to‘xtadi");
 }
 
-/* ================= ANSWER ================= */
-export function answerHandler(ctx, bot) {
+// ================= ANSWER =================
+export function answerHandler(ctx) {
   const id = ctx.from.id;
   const user = users[id];
 
   if (!user || !user.active) return;
 
-  const last = user.used[user.used.length - 1];
-  const q = questions.find((x) => x.id === last);
+  clearTimer(id);
+
+  const answer = Number(ctx.match[1]);
+  const q = user.current;
 
   if (!q) return;
 
-  const ans = Number(ctx.match[1]);
-
-  if (ans === q.correct) {
+  if (answer === q.correct) {
     user.score += 10;
-    ctx.reply(`✅ To‘g‘ri | Ball: ${user.score}`);
+    ctx.reply(`✅ To‘g‘ri! | Ball: ${user.score}`);
   } else {
     ctx.reply(`❌ Noto‘g‘ri | Ball: ${user.score}`);
   }
 
-  if (timers[id]) clearTimeout(timers[id]);
-
-  setTimeout(() => sendQuestion(ctx, bot), 800);
+  setTimeout(() => sendQuestion(ctx), 800);
 }
 
+// ================= EXPORTS =================
 export { users, timers };

@@ -17,6 +17,7 @@ export function initUser(id) {
       used: [],
       score: 0,
       active: false,
+      current: null, // 🔥 MUHIM
     };
   }
 }
@@ -33,9 +34,19 @@ export function getRandomQuestion(id) {
   }
 
   const q = available[Math.floor(Math.random() * available.length)];
+
   user.used.push(q.id);
+  user.current = q.id; // 🔥 MUHIM
 
   return q;
+}
+
+// ================= CLEAR TIMER =================
+function clearUserTimer(id) {
+  if (timers[id]) {
+    clearTimeout(timers[id]);
+    delete timers[id];
+  }
 }
 
 // ================= SEND QUESTION =================
@@ -53,16 +64,11 @@ export async function sendQuestion(ctx, bot) {
 
   buttons.push([{ text: "⛔ STOP TEST", callback_data: "stop" }]);
 
-  await ctx.reply(
-    `❓ ${q.question}
+  await ctx.reply(`❓ ${q.question}\n\n⏳ 30 sekund`, {
+    reply_markup: { inline_keyboard: buttons },
+  });
 
-⏳ 30 sekund`,
-    {
-      reply_markup: { inline_keyboard: buttons },
-    },
-  );
-
-  if (timers[id]) clearTimeout(timers[id]);
+  clearUserTimer(id);
 
   timers[id] = setTimeout(() => {
     ctx.telegram.sendMessage(ctx.chat.id, "⏰ Vaqt tugadi!");
@@ -75,7 +81,11 @@ export function startQuiz(ctx, bot) {
   const id = ctx.from.id;
 
   initUser(id);
+
   users[id].active = true;
+  users[id].score = 0;
+  users[id].used = [];
+  users[id].current = null;
 
   sendQuestion(ctx, bot);
 }
@@ -84,12 +94,13 @@ export function startQuiz(ctx, bot) {
 export function stopQuiz(ctx) {
   const id = ctx.from.id;
 
-  if (timers[id]) clearTimeout(timers[id]);
+  clearUserTimer(id);
 
   if (users[id]) {
     users[id].active = false;
     users[id].used = [];
     users[id].score = 0;
+    users[id].current = null;
   }
 
   ctx.reply("⛔ Test to‘xtadi");
@@ -102,10 +113,13 @@ export function answerHandler(ctx, bot) {
 
   if (!user || !user.active) return;
 
-  const last = user.used[user.used.length - 1];
-  const q = questions.find((x) => x.id === last);
+  clearUserTimer(id);
 
   const ans = Number(ctx.match[1]);
+
+  const q = questions.find((x) => x.id === user.current);
+
+  if (!q) return;
 
   if (ans === q.correct) {
     user.score += 10;
@@ -113,8 +127,6 @@ export function answerHandler(ctx, bot) {
   } else {
     ctx.reply(`❌ Noto‘g‘ri | Ball: ${user.score}`);
   }
-
-  if (timers[id]) clearTimeout(timers[id]);
 
   setTimeout(() => sendQuestion(ctx, bot), 700);
 }
