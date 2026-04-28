@@ -9,7 +9,15 @@ const bot = new Telegraf(process.env.BOT_TOKEN);
 
 // ================= START =================
 bot.start(async (ctx) => {
-  await ctx.reply("🎯 Quiz Bot Ready\n/start bosib testni boshlang");
+  initUser(ctx);
+
+  await ctx.reply("🎯 Quiz Bot Ready", {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "🚀 Testni boshlash", callback_data: "start_test" }],
+      ],
+    },
+  });
 });
 
 // ================= START TEST =================
@@ -27,10 +35,12 @@ bot.action("stop", async (ctx) => {
 // ================= ANSWER =================
 bot.action(/ans_(\d+)/, async (ctx) => {
   await ctx.answerCbQuery();
-  answerHandler(ctx, bot);
+
+  const answerIndex = ctx.match[1];
+  answerHandler(ctx, bot, Number(answerIndex));
 });
 
 // ================= LAUNCH =================
-bot.launch();
-
-console.log("🤖 Bot started");
+bot.launch().then(() => {
+  console.log("🤖 Bot started");
+});
