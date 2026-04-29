@@ -19,11 +19,12 @@ export function initUser(id) {
 
 // ================= RANDOM QUESTION =================
 function getQuestion(user) {
-  const available = questions.filter((q) => !user.used.includes(q.id));
-
-  if (available.length === 0) {
-    return null;
+  // 🔥 hammasi tugasa qaytadan boshlaydi
+  if (user.used.length >= questions.length) {
+    user.used = [];
   }
+
+  const available = questions.filter((q) => !user.used.includes(q.id));
 
   return available[Math.floor(Math.random() * available.length)];
 }
@@ -37,6 +38,27 @@ function clearTimer(id) {
   }
 }
 
+// ================= BUTTONS =================
+function getButtons(username) {
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: "⛔ STOP",
+          callback_data: "stop",
+        },
+      ],
+
+      [
+        {
+          text: "👥 Guruhga qo‘shish",
+          url: `https://t.me/${username}?startgroup=true`,
+        },
+      ],
+    ],
+  };
+}
+
 // ================= SEND QUESTION =================
 export async function sendQuestion(ctx) {
   const id = ctx.chat.id;
@@ -47,27 +69,6 @@ export async function sendQuestion(ctx) {
 
   const q = getQuestion(user);
 
-  // ================= FINISH =================
-  if (!q) {
-    clearTimer(id);
-
-    user.active = false;
-
-    return ctx.reply(`🎉 Test tugadi!\n🏆 Ball: ${user.score}`, {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: "🚀 Qayta boshlash",
-              callback_data: "start",
-            },
-          ],
-        ],
-      },
-    });
-  }
-
-  // ================= QUIZ POLL =================
   const pollMessage = await ctx.replyWithPoll(`❓ ${q.question}`, q.answers, {
     type: "quiz",
 
@@ -83,18 +84,8 @@ export async function sendQuestion(ctx) {
     question: q,
   };
 
-  // ================= STOP BUTTON =================
-  await ctx.reply("⛔ Quizni to‘xtatish", {
-    reply_markup: {
-      inline_keyboard: [
-        [
-          {
-            text: "⛔ STOP",
-            callback_data: "stop",
-          },
-        ],
-      ],
-    },
+  await ctx.reply("👇 Quiz boshqaruvi", {
+    reply_markup: getButtons(ctx.botInfo.username),
   });
 
   clearTimer(id);
@@ -119,14 +110,12 @@ export function startQuiz(ctx) {
   initUser(id);
 
   users[id].active = true;
-  users[id].score = 0;
-  users[id].used = [];
 
   sendQuestion(ctx);
 }
 
 // ================= STOP =================
-export function stopQuiz(ctx) {
+export async function stopQuiz(ctx) {
   const id = ctx.chat.id;
 
   clearTimer(id);
@@ -135,13 +124,20 @@ export function stopQuiz(ctx) {
     users[id].active = false;
   }
 
-  ctx.reply(`🛑 Quiz to‘xtadi\n🏆 Ball: ${users[id]?.score || 0}`, {
+  await ctx.reply(`🛑 Quiz to‘xtadi\n🏆 Ball: ${users[id]?.score || 0}`, {
     reply_markup: {
       inline_keyboard: [
         [
           {
             text: "🚀 Qayta boshlash",
             callback_data: "start",
+          },
+        ],
+
+        [
+          {
+            text: "👥 Guruhga qo‘shish",
+            url: `https://t.me/${ctx.botInfo.username}?startgroup=true`,
           },
         ],
       ],
@@ -167,7 +163,7 @@ export async function handlePollAnswer(bot, pollAnswer) {
 
   const q = pollData.question;
 
-  // ================= CHECK =================
+  // ================= RESULT =================
   if (selected === q.correct) {
     user.score += 10;
 
@@ -186,7 +182,9 @@ export async function handlePollAnswer(bot, pollAnswer) {
 
   setTimeout(() => {
     sendQuestion({
-      chat: { id: pollData.chatId },
+      chat: {
+        id: pollData.chatId,
+      },
 
       reply: (...args) =>
         bot.telegram.sendMessage(pollData.chatId, args[0], args[1]),
@@ -195,8 +193,10 @@ export async function handlePollAnswer(bot, pollAnswer) {
         bot.telegram.sendPoll(pollData.chatId, args[0], args[1], args[2]),
 
       telegram: bot.telegram,
+
+      botInfo: bot.botInfo,
     });
-  }, 300);
+  }, 500);
 }
 
 export { users, polls, timers };

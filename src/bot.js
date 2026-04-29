@@ -11,6 +11,8 @@ const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.start(async (ctx) => {
   initUser(ctx.chat.id);
 
+  const botUsername = ctx.botInfo.username;
+
   await ctx.reply(
     "🎯 Smart Quiz Bot\n\nQuizni boshlash uchun tugmani bosing 👇",
     {
@@ -22,20 +24,27 @@ bot.start(async (ctx) => {
               callback_data: "start",
             },
           ],
+
+          [
+            {
+              text: "👥 Guruhga qo‘shish",
+              url: `https://t.me/${botUsername}?startgroup=true`,
+            },
+          ],
         ],
       },
     },
   );
 });
 
-// ================= START =================
+// ================= START QUIZ =================
 bot.action("start", async (ctx) => {
   await ctx.answerCbQuery();
 
   startQuiz(ctx);
 });
 
-// ================= STOP =================
+// ================= STOP QUIZ =================
 bot.action("stop", async (ctx) => {
   await ctx.answerCbQuery();
 
@@ -45,6 +54,31 @@ bot.action("stop", async (ctx) => {
 // ================= POLL ANSWER =================
 bot.on("poll_answer", async (ctx) => {
   await handlePollAnswer(bot, ctx.update.poll_answer);
+});
+
+// ================= GROUP JOIN =================
+bot.on("new_chat_members", async (ctx) => {
+  const botUsername = ctx.botInfo.username;
+
+  await ctx.reply("🎉 Smart Quiz Bot guruhga qo‘shildi!", {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: "🚀 Testni boshlash",
+            callback_data: "start",
+          },
+        ],
+
+        [
+          {
+            text: "👥 Botni ulashish",
+            url: `https://t.me/${botUsername}`,
+          },
+        ],
+      ],
+    },
+  });
 });
 
 // ================= ERROR =================
