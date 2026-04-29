@@ -1,19 +1,11 @@
-```js
 import fs from "fs";
 import path from "path";
 
+// ================= PARSE QUESTIONS =================
 export function parseQuestions() {
-  const filePath = path.join(
-    process.cwd(),
-    "src",
-    "data",
-    "questions.txt"
-  );
+  const filePath = path.join(process.cwd(), "src", "data", "questions.txt");
 
-  const raw = fs.readFileSync(
-    filePath,
-    "utf-8"
-  );
+  const raw = fs.readFileSync(filePath, "utf-8");
 
   const blocks = raw
     .split("++++")
@@ -40,9 +32,7 @@ export function parseQuestions() {
       if (a.startsWith("#")) {
         correct = i;
 
-        answers.push(
-          a.replace("#", "").trim()
-        );
+        answers.push(a.replace("#", "").trim());
       } else {
         answers.push(a.trim());
       }
@@ -56,6 +46,7 @@ export function parseQuestions() {
     });
   });
 
+  console.log(`✅ Loaded questions: ${questions.length}`);
+
   return questions;
 }
-```;
