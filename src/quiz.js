@@ -1,21 +1,36 @@
-import { parseQuestions } from "./parser.js";
+const users = {};
+const polls = {};
+const timers = {};
 
-const questions = parseQuestions();
-
-const users = new Map();
-const timers = new Map();
+// ================= QUESTIONS =================
+const questions = [
+  {
+    id: 1,
+    question: "Ot nima?",
+    answers: ["So‘z turi", "Gap", "Tovush", "Raqam"],
+    correct: 0,
+  },
+  {
+    id: 2,
+    question: "2 + 2 = ?",
+    answers: ["3", "4", "5", "6"],
+    correct: 1,
+  },
+];
 
 // ================= INIT =================
-export function initUser(ctx) {
-  users.set(ctx.from.id, {
-    score: 0,
-    used: [],
-    current: null,
-    active: false,
-  });
+export function initUser(id) {
+  if (!users[id]) {
+    users[id] = {
+      score: 0,
+      active: false,
+      used: [],
+      current: null,
+    };
+  }
 }
 
-// ================= GET QUESTION =================
+// ================= RANDOM QUESTION =================
 function getQuestion(user) {
   const available = questions.filter((q) => !user.used.includes(q.id));
 
@@ -24,102 +39,182 @@ function getQuestion(user) {
   return available[Math.floor(Math.random() * available.length)];
 }
 
-// ================= CLEAR TIMER =================
+// ================= TIMER CLEAR =================
 function clearTimer(id) {
-  if (timers.has(id)) {
-    clearTimeout(timers.get(id));
-    timers.delete(id);
+  if (timers[id]) {
+    clearTimeout(timers[id]);
+    delete timers[id];
   }
 }
 
 // ================= SEND QUESTION =================
-export function sendQuestion(ctx) {
-  const user = users.get(ctx.from.id);
+export async function sendQuestion(ctx) {
+  const id = ctx.chat.id;
+
+  const user = users[id];
+
   if (!user || !user.active) return;
 
   const q = getQuestion(user);
 
+  // ================= FINISH =================
   if (!q) {
+    clearTimer(id);
+
     user.active = false;
-    return ctx.reply(`🎉 Test tugadi!\nBall: ${user.score}`);
+
+    return ctx.reply(`🎉 Test tugadi!\n🏆 Ball: ${user.score}`, {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: "🚀 Qayta boshlash",
+              callback_data: "start",
+            },
+          ],
+        ],
+      },
+    });
   }
 
   user.current = q;
 
-  ctx.reply(`❓ ${q.question}\n⏳ 30 sekund`, {
+  // ================= QUIZ POLL =================
+  const pollMessage = await ctx.replyWithPoll(
+    `❓ ${q.question}\n\n⏳ 30 sekund`,
+    q.answers,
+    {
+      type: "quiz",
+
+      // 🔥 TO‘G‘RI JAVOB
+      correct_option_id: q.correct,
+
+      // 🔥 KIM OVOZ BERGANI KO‘RINADI
+      is_anonymous: false,
+    },
+  );
+
+  polls[pollMessage.poll.id] = {
+    chatId: id,
+    question: q,
+  };
+
+  // ================= STOP BUTTON =================
+  await ctx.reply("⛔ Quizni to‘xtatish:", {
     reply_markup: {
       inline_keyboard: [
-        ...q.answers.map((a, i) => [{ text: a, callback_data: `ans_${i}` }]),
-        [{ text: "⛔ STOP", callback_data: "stop" }],
+        [
+          {
+            text: "⛔ STOP",
+            callback_data: "stop",
+          },
+        ],
       ],
     },
   });
 
-  // ================= TIMER 30s =================
-  clearTimer(ctx.from.id);
+  // ================= TIMER =================
+  clearTimer(id);
 
-  const timer = setTimeout(() => {
-    const u = users.get(ctx.from.id);
+  timers[id] = setTimeout(async () => {
+    const currentUser = users[id];
 
-    if (!u || !u.active) return;
+    if (!currentUser || !currentUser.active) return;
 
-    ctx.telegram.sendMessage(ctx.chat.id, "⏰ Vaqt tugadi!");
+    currentUser.used.push(q.id);
 
-    u.used.push(q.id);
+    await ctx.telegram.sendMessage(id, "⏰ Vaqt tugadi!").catch(() => {});
 
     sendQuestion(ctx);
   }, 30000);
-
-  timers.set(ctx.from.id, timer);
 }
 
 // ================= START =================
 export function startQuiz(ctx) {
-  const user = users.get(ctx.from.id);
-  if (!user) return;
+  const id = ctx.chat.id;
 
-  user.active = true;
-  user.used = [];
-  user.score = 0;
+  initUser(id);
+
+  users[id].active = true;
+  users[id].score = 0;
+  users[id].used = [];
+  users[id].current = null;
 
   sendQuestion(ctx);
 }
 
-// ================= ANSWER =================
-export function answerHandler(ctx) {
-  const user = users.get(ctx.from.id);
-  if (!user || !user.current) return;
-
-  const ans = Number(ctx.match[1]);
-  const q = user.current;
-
-  clearTimer(ctx.from.id);
-
-  if (ans === q.correct) {
-    user.score += 10;
-    ctx.reply(`✅ To‘g‘ri | Ball: ${user.score}`);
-  } else {
-    ctx.reply(`❌ Noto‘g‘ri | Ball: ${user.score}`);
-  }
-
-  user.used.push(q.id);
-  user.current = null;
-
-  setTimeout(() => sendQuestion(ctx), 700);
-}
-
 // ================= STOP =================
 export function stopQuiz(ctx) {
-  const user = users.get(ctx.from.id);
-  if (!user) return;
+  const id = ctx.chat.id;
 
-  clearTimer(ctx.from.id);
+  clearTimer(id);
 
-  user.active = false;
+  if (users[id]) {
+    users[id].active = false;
+  }
 
-  ctx.reply(`🛑 STOP\nFinal Ball: ${user.score}`, {
+  ctx.reply(`🛑 Quiz to‘xtadi\n🏆 Ball: ${users[id]?.score || 0}`, {
     reply_markup: {
-      inline_keyboard: [[{ text: "🚀 Restart", callback_data: "start" }]],
+      inline_keyboard: [
+        [
+          {
+            text: "🚀 Qayta boshlash",
+            callback_data: "start",
+          },
+        ],
+      ],
     },
   });
 }
+
+// ================= POLL ANSWER =================
+export async function handlePollAnswer(bot, pollAnswer) {
+  const pollId = pollAnswer.poll_id;
+
+  const pollData = polls[pollId];
+
+  if (!pollData) return;
+
+  const user = users[pollData.chatId];
+
+  if (!user || !user.active) return;
+
+  clearTimer(pollData.chatId);
+
+  const selected = pollAnswer.option_ids[0];
+
+  const q = pollData.question;
+
+  // ================= CHECK =================
+  if (selected === q.correct) {
+    user.score += 10;
+
+    await bot.telegram.sendMessage(
+      pollData.chatId,
+      `✅ To‘g‘ri!\n🏆 Ball: ${user.score}`,
+    );
+  } else {
+    await bot.telegram.sendMessage(
+      pollData.chatId,
+      `❌ Noto‘g‘ri!\n🏆 Ball: ${user.score}`,
+    );
+  }
+
+  user.used.push(q.id);
+
+  setTimeout(() => {
+    sendQuestion({
+      chat: { id: pollData.chatId },
+
+      reply: (...args) =>
+        bot.telegram.sendMessage(pollData.chatId, args[0], args[1]),
+
+      replyWithPoll: (...args) =>
+        bot.telegram.sendPoll(pollData.chatId, args[0], args[1], args[2]),
+
+      telegram: bot.telegram,
+    });
+  }, 1000);
+}
+
+export { users, timers };
