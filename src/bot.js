@@ -8,31 +8,34 @@ dotenv.config();
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
 // ================= START =================
-bot.start((ctx) => {
+bot.start(async (ctx) => {
   initUser(ctx.chat.id);
 
-  ctx.reply("🎯 Smart Quiz Bot", {
-    reply_markup: {
-      inline_keyboard: [
-        [
-          {
-            text: "🚀 Testni boshlash",
-            callback_data: "start",
-          },
+  await ctx.reply(
+    "🎯 Smart Quiz Bot\n\nQuizni boshlash uchun tugmani bosing 👇",
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: "🚀 Testni boshlash",
+              callback_data: "start",
+            },
+          ],
         ],
-      ],
+      },
     },
-  });
+  );
 });
 
-// ================= START QUIZ =================
+// ================= START =================
 bot.action("start", async (ctx) => {
   await ctx.answerCbQuery();
 
   startQuiz(ctx);
 });
 
-// ================= STOP QUIZ =================
+// ================= STOP =================
 bot.action("stop", async (ctx) => {
   await ctx.answerCbQuery();
 
@@ -44,7 +47,7 @@ bot.on("poll_answer", async (ctx) => {
   await handlePollAnswer(bot, ctx.update.poll_answer);
 });
 
-// ================= ERROR HANDLER =================
+// ================= ERROR =================
 bot.catch((err) => {
   console.log("BOT ERROR:", err.message);
 });

@@ -1,22 +1,10 @@
+import { parseQuestions } from "./parser.js";
+
+const questions = parseQuestions();
+
 const users = {};
 const polls = {};
 const timers = {};
-
-// ================= QUESTIONS =================
-const questions = [
-  {
-    id: 1,
-    question: "Ot nima?",
-    answers: ["So‘z turi", "Gap", "Tovush", "Raqam"],
-    correct: 0,
-  },
-  {
-    id: 2,
-    question: "2 + 2 = ?",
-    answers: ["3", "4", "5", "6"],
-    correct: 1,
-  },
-];
 
 // ================= INIT =================
 export function initUser(id) {
@@ -33,7 +21,9 @@ export function initUser(id) {
 function getQuestion(user) {
   const available = questions.filter((q) => !user.used.includes(q.id));
 
-  if (available.length === 0) return null;
+  if (available.length === 0) {
+    return null;
+  }
 
   return available[Math.floor(Math.random() * available.length)];
 }
@@ -42,6 +32,7 @@ function getQuestion(user) {
 function clearTimer(id) {
   if (timers[id]) {
     clearTimeout(timers[id]);
+
     delete timers[id];
   }
 }
@@ -76,15 +67,14 @@ export async function sendQuestion(ctx) {
     });
   }
 
-  // ================= POLL =================
+  // ================= QUIZ POLL =================
   const pollMessage = await ctx.replyWithPoll(`❓ ${q.question}`, q.answers, {
     type: "quiz",
+
     correct_option_id: q.correct,
 
-    // 🔥 KIM JAVOB BERGANI KO‘RINADI
     is_anonymous: false,
 
-    // 🔥 30 SEKUND
     open_period: 30,
   });
 
@@ -206,7 +196,7 @@ export async function handlePollAnswer(bot, pollAnswer) {
 
       telegram: bot.telegram,
     });
-  }, 1000);
+  }, 300);
 }
 
 export { users, polls, timers };

@@ -1,11 +1,19 @@
+```js
 import fs from "fs";
 import path from "path";
 
-// ================= PARSE QUESTIONS =================
 export function parseQuestions() {
-  const filePath = path.join(process.cwd(), "src", "data", "questions.txt");
+  const filePath = path.join(
+    process.cwd(),
+    "src",
+    "data",
+    "questions.txt"
+  );
 
-  const raw = fs.readFileSync(filePath, "utf-8");
+  const raw = fs.readFileSync(
+    filePath,
+    "utf-8"
+  );
 
   const blocks = raw
     .split("++++")
@@ -25,12 +33,16 @@ export function parseQuestions() {
     const question = parts[0];
 
     const answers = [];
+
     let correct = 0;
 
     parts.slice(1).forEach((a, i) => {
       if (a.startsWith("#")) {
         correct = i;
-        answers.push(a.replace("#", "").trim());
+
+        answers.push(
+          a.replace("#", "").trim()
+        );
       } else {
         answers.push(a.trim());
       }
@@ -46,3 +58,4 @@ export function parseQuestions() {
 
   return questions;
 }
+```;
