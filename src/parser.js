@@ -1,12 +1,9 @@
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
+// ================= PARSE QUESTIONS =================
 export function parseQuestions() {
-  const filePath = path.join(__dirname, "data/questions.txt");
+  const filePath = path.join(process.cwd(), "src", "data", "questions.txt");
 
   const raw = fs.readFileSync(filePath, "utf-8");
 
@@ -17,37 +14,35 @@ export function parseQuestions() {
 
   const questions = [];
 
-  for (const block of blocks) {
+  blocks.forEach((block, index) => {
     const parts = block
       .split("====")
       .map((p) => p.trim())
       .filter(Boolean);
 
-    if (parts.length < 2) continue;
+    if (parts.length < 5) return;
 
     const question = parts[0];
 
     const answers = [];
     let correct = 0;
 
-    for (let i = 1; i < parts.length; i++) {
-      const item = parts[i];
-
-      if (item.startsWith("#")) {
-        correct = i - 1;
-        answers.push(item.slice(1).trim());
+    parts.slice(1).forEach((a, i) => {
+      if (a.startsWith("#")) {
+        correct = i;
+        answers.push(a.replace("#", "").trim());
       } else {
-        answers.push(item);
+        answers.push(a.trim());
       }
-    }
+    });
 
     questions.push({
-      id: questions.length + 1,
+      id: index + 1,
       question,
       answers,
       correct,
     });
-  }
+  });
 
   return questions;
 }
