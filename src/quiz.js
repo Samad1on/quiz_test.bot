@@ -25,7 +25,6 @@ export function initUser(id) {
       score: 0,
       active: false,
       used: [],
-      current: null,
     };
   }
 }
@@ -39,7 +38,7 @@ function getQuestion(user) {
   return available[Math.floor(Math.random() * available.length)];
 }
 
-// ================= TIMER CLEAR =================
+// ================= CLEAR TIMER =================
 function clearTimer(id) {
   if (timers[id]) {
     clearTimeout(timers[id]);
@@ -77,22 +76,17 @@ export async function sendQuestion(ctx) {
     });
   }
 
-  user.current = q;
+  // ================= POLL =================
+  const pollMessage = await ctx.replyWithPoll(`❓ ${q.question}`, q.answers, {
+    type: "quiz",
+    correct_option_id: q.correct,
 
-  // ================= QUIZ POLL =================
-  const pollMessage = await ctx.replyWithPoll(
-    `❓ ${q.question}\n\n⏳ 30 sekund`,
-    q.answers,
-    {
-      type: "quiz",
+    // 🔥 KIM JAVOB BERGANI KO‘RINADI
+    is_anonymous: false,
 
-      // 🔥 TO‘G‘RI JAVOB
-      correct_option_id: q.correct,
-
-      // 🔥 KIM OVOZ BERGANI KO‘RINADI
-      is_anonymous: false,
-    },
-  );
+    // 🔥 30 SEKUND
+    open_period: 30,
+  });
 
   polls[pollMessage.poll.id] = {
     chatId: id,
@@ -100,7 +94,7 @@ export async function sendQuestion(ctx) {
   };
 
   // ================= STOP BUTTON =================
-  await ctx.reply("⛔ Quizni to‘xtatish:", {
+  await ctx.reply("⛔ Quizni to‘xtatish", {
     reply_markup: {
       inline_keyboard: [
         [
@@ -113,7 +107,6 @@ export async function sendQuestion(ctx) {
     },
   });
 
-  // ================= TIMER =================
   clearTimer(id);
 
   timers[id] = setTimeout(async () => {
@@ -138,7 +131,6 @@ export function startQuiz(ctx) {
   users[id].active = true;
   users[id].score = 0;
   users[id].used = [];
-  users[id].current = null;
 
   sendQuestion(ctx);
 }
@@ -217,4 +209,4 @@ export async function handlePollAnswer(bot, pollAnswer) {
   }, 1000);
 }
 
-export { users, timers };
+export { users, polls, timers };

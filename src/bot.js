@@ -1,13 +1,7 @@
-```js
 import { Telegraf } from "telegraf";
 import dotenv from "dotenv";
 
-import {
-  initUser,
-  startQuiz,
-  stopQuiz,
-  handlePollAnswer,
-} from "./quiz.js";
+import { initUser, startQuiz, stopQuiz, handlePollAnswer } from "./quiz.js";
 
 dotenv.config();
 
@@ -47,10 +41,7 @@ bot.action("stop", async (ctx) => {
 
 // ================= POLL ANSWER =================
 bot.on("poll_answer", async (ctx) => {
-  await handlePollAnswer(
-    bot,
-    ctx.update.poll_answer
-  );
+  await handlePollAnswer(bot, ctx.update.poll_answer);
 });
 
 // ================= ERROR HANDLER =================
@@ -62,4 +53,3 @@ bot.catch((err) => {
 bot.launch();
 
 console.log("🤖 Bot running...");
-```;
